@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  顶部七天迷你条里「这天没比赛」的那一格。
+
+  刻意用一份透明 drawable 而不是把背景设成 @null —— RemoteViews 里换背景
+  最稳的办法就是换一份别的 drawable，`setInt(id, "setBackgroundResource", ...)`
+  一条路走到底，不用为「清除」另开分支。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/transparent" />
+    <corners android:radius="3dp" />
+</shape>

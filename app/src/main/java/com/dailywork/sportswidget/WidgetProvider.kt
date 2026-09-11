@@ -6,8 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.view.View
+import android.net.Uri
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
 import java.time.Instant
@@ -21,10 +20,10 @@ import java.util.Locale
  *
  * 这个文件里有两个顶层声明，职责严格分开：
  *   - [WidgetProvider]：只管生命周期回调、广播、调度，不碰 RemoteViews 的细节
- *   - [WidgetRenderer]：只管把数据画到 RemoteViews 上，不知道谁调用的它
+ *   - [WidgetRenderer]：只管把顶栏和七天条画出来、把列表接上，不知道谁调用的它
  *
- * 这么分是因为渲染逻辑（尺寸分档、chip 怎么选、颜色怎么上）比生命周期长得多，
- * 混在一起以后没法读。
+ * 卡片本身的内容由 [WidgetService] / [WidgetFactory] 提供 ——
+ * 因为 ListView 的行是启动器按需来取的，没法一次性画进去。
  */
 class WidgetProvider : AppWidgetProvider() {
 
@@ -44,18 +43,14 @@ class WidgetProvider : AppWidgetProvider() {
         RefreshScheduler.schedule(context, immediate = true)
     }
 
-    /**
-     * 用户拖动改尺寸时回调。
-     *
-     * 必须重画 —— 每天显示几条是按当前高度算的（见 [WidgetRenderer.maxChipsFor]），
-     * 不重画的话要等下一次周期刷新才变，中间那段时间用户看到的是被裁掉一半的布局。
-     */
     override fun onAppWidgetOptionsChanged(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
         newOptions: android.os.Bundle,
     ) {
+        // 列表本身能滚动，高度变了不用改内容，但七天条里的「今天」和卡片上的
+        // 时间文案（今天/明天/周六）要按当前时刻重算一次，所以还是重画。
         WidgetRenderer.render(context, appWidgetManager, appWidgetId)
     }
 
@@ -85,9 +80,9 @@ class WidgetProvider : AppWidgetProvider() {
                 RefreshScheduler.schedule(context, immediate = true)
             }
 
-            // 跨零点 / 手动改时间 / 换时区：只按新时区把「今天」列挪对位置，**不联网**。
+            // 跨零点 / 手动改时间 / 换时区：只按新时区重算「今天」和卡片时间文案，**不联网**。
             // WorkManager 的周期任务在 Doze 下会被合并，息屏一整夜可能到早上才跑，
-            // 中间这段时间高亮的「今天」还是昨天，光靠周期任务兜不住。
+            // 中间这段时间七天条里的「今天」还是昨天，光靠周期任务兜不住。
             Intent.ACTION_DATE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
@@ -98,82 +93,53 @@ class WidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "com.dailywork.sportswidget.ACTION_REFRESH"
 
-        /** 把桌面上所有小组件重画一遍（不联网，只重新分组已有的数据）。 */
+        /**
+         * 把桌面上所有小组件重画一遍（不联网，只重新分组已有的数据）。
+         *
+         * 两件事都要做：
+         *   · updateAppWidget  —— 顶栏和七天条是静态控件，直接改它们
+         *   · notifyAppWidgetViewDataChanged —— 列表里的卡片由 Factory 提供，
+         *     不通知的话它不会重新取数，卡片会一直是旧的
+         */
         fun updateAll(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, WidgetProvider::class.java))
             // 桌面上没有小组件时提前返回，省掉一次 SharedPreferences 读取
             if (ids.isEmpty()) return
             ids.forEach { WidgetRenderer.render(context, mgr, it) }
+            notifyCardsChanged(context, mgr, ids)
+        }
+
+        /** 让启动器重新向 [WidgetService] 要一遍卡片数据。 */
+        fun notifyCardsChanged(context: Context, mgr: AppWidgetManager, ids: IntArray) {
+            if (ids.isEmpty()) return
+            // 这个方法名长但就是它：告诉 AppWidgetManager 这个集合控件的数据变了
+            mgr.notifyAppWidgetViewDataChanged(ids, android.R.id.list)
         }
     }
 }
 
 /**
- * 把「未来七天」画到 RemoteViews 上。
+ * 画顶栏、七天迷你条，以及把 ListView 接到 [WidgetService] 上。
  *
- * ── 为什么 21 个 chip 是写死在布局里的，而不是 addView 动态挂 ──────────────
- * 见 widget_sports.xml 顶部注释的「RemoteViews 三条红线」第 3 条。
- * 简单说：addView 会让每次更新产生 21 次嵌套 inflate，全在启动器主线程上，
- * 而且嵌套根布局的 margin 在部分启动器上会被丢掉。
+ * ── 可滚动的实现要点 ──────────────────────────────────────────────────
+ * 小组件的集合控件不是用 addView 塞进去的，而是：
+ *   1. 布局里放一个 id 为 @android:id/list 的 ListView
+ *   2. setRemoteAdapter 把它的数据源指向一个 RemoteViewsService
+ *   3. 行内容由那个 service 的 Factory 逐行提供
+ *   4. 数据变了要调 notifyAppWidgetViewDataChanged 通知重新取
  */
 object WidgetRenderer {
 
-    /** 7 列 × 3 条，与布局里的 chip_<列>_<序> 对应。 */
-    private val CHIP_IDS = arrayOf(
-        intArrayOf(R.id.chip_0_0, R.id.chip_0_1, R.id.chip_0_2),
-        intArrayOf(R.id.chip_1_0, R.id.chip_1_1, R.id.chip_1_2),
-        intArrayOf(R.id.chip_2_0, R.id.chip_2_1, R.id.chip_2_2),
-        intArrayOf(R.id.chip_3_0, R.id.chip_3_1, R.id.chip_3_2),
-        intArrayOf(R.id.chip_4_0, R.id.chip_4_1, R.id.chip_4_2),
-        intArrayOf(R.id.chip_5_0, R.id.chip_5_1, R.id.chip_5_2),
-        intArrayOf(R.id.chip_6_0, R.id.chip_6_1, R.id.chip_6_2),
+    private val DAY_IDS = intArrayOf(
+        R.id.tv_day_0, R.id.tv_day_1, R.id.tv_day_2, R.id.tv_day_3,
+        R.id.tv_day_4, R.id.tv_day_5, R.id.tv_day_6,
     )
-
-    private val WDAY_IDS = intArrayOf(
-        R.id.tv_wday_0, R.id.tv_wday_1, R.id.tv_wday_2, R.id.tv_wday_3,
-        R.id.tv_wday_4, R.id.tv_wday_5, R.id.tv_wday_6,
-    )
-
-    private val DATE_IDS = intArrayOf(
-        R.id.tv_date_0, R.id.tv_date_1, R.id.tv_date_2, R.id.tv_date_3,
-        R.id.tv_date_4, R.id.tv_date_5, R.id.tv_date_6,
-    )
-
-    /** 一列最多放几条，见 widget_sports.xml 的尺寸账。 */
-    const val MAX_CHIPS_PER_DAY = 3
-
-    /** 启动器没报高度时的兜底。宁可按小的算 —— 少了只是空一点，多了会被裁。 */
-    private const val DEFAULT_HEIGHT_DP = 100
-
-    /**
-     * widget_sports.xml 里不随高度变化的部分：
-     * 根 padding 16 + 顶栏 18 + 间距 4 + 星期行 10 + 日期行 14 + 间距 4 = 66dp。
-     * 改布局里那些值时这里要跟着改。
-     */
-    private const val FIXED_HEIGHT_DP = 66
-
-    /** 每条 chip 连间距约占的高度：13dp 高 + 2dp 间距。 */
-    private const val CHIP_SLOT_DP = 15
 
     /** 数据超过这么久没更新，顶栏转琥珀色提醒。 */
     private const val STALE_AFTER_MS = 24 * 60 * 60 * 1000L
 
-    /**
-     * chip 上色的两条路。
-     *
-     * `setBackgroundResource` 走的是 RemoteViews 的 `setInt` 反射通道，
-     * `View.setBackgroundResource` 带 `@RemotableViewMethod` 注解，API 26+ 上正常，
-     * 而且圆角由 drawable 保证、深浅色由资源系统自动选，是最干净的做法。
-     *
-     * **万一**在某个 ROM 上发现 chip 没颜色、桌面显示「载入小组件时出现问题」，
-     * 把这里改成 false 就会退回 `setBackgroundColor`（确定可用）——
-     * 代价是丢掉 3dp 圆角，功能不受影响。改动就这一行。
-     */
-    private const val CHIP_USE_BACKGROUND_RESOURCE = true
-
     private val STAMP_FMT = DateTimeFormatter.ofPattern("M/d HH:mm", Locale.US)
-    private val WDAY_NAMES = arrayOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
 
     fun render(
         context: Context,
@@ -185,125 +151,94 @@ object WidgetRenderer {
         val data = Prefs.loadData(context)
         val now = System.currentTimeMillis()
 
-        applyDays(context, views, manager, widgetId, data, now)
+        applyDayStrip(context, views, data)
         applyStatus(context, views, data, now, statusOverride)
+        attachList(context, views, widgetId)
         applyClicks(context, views)
 
         manager.updateAppWidget(widgetId, views)
+        // 顶栏更新完还要通知列表重新取卡片，否则卡片一直是旧的
+        WidgetProvider.notifyCardsChanged(context, manager, intArrayOf(widgetId))
     }
+
+    // ── 顶部七天迷你条 ────────────────────────────────────────────────
 
     /**
-     * 按当前的高度决定这一列放几条 chip。
+     * 「这七天里哪天有比赛」。
      *
-     * 为什么要算而不是写死 3 条：`OPTION_APPWIDGET_MIN_HEIGHT` 在不同启动器上
-     * 报的值差别很大（同一个 4×2，AOSP 报 110dp，MIUI 可能报 100 或 130），
-     * 而小组件不会滚动、也不会自己长高 —— 多出来的那条就是被裁掉。
+     * 卡片流回答的是「比什么赛」，这条回答的是「哪天有比赛」—— 两个不同的问题。
+     * 没有它的话，一眼看过去完全不知道哪天是空的。
      */
-    fun maxChipsFor(reportedHeightDp: Int): Int {
-        val heightDp = reportedHeightDp.takeIf { it > 0 } ?: DEFAULT_HEIGHT_DP
-        val room = heightDp - FIXED_HEIGHT_DP
-        return (room / CHIP_SLOT_DP).coerceIn(1, MAX_CHIPS_PER_DAY)
-    }
-
-    // ── 内部实现 ──────────────────────────────────────────────────────
-
-    private fun applyDays(
-        context: Context,
-        views: RemoteViews,
-        manager: AppWidgetManager,
-        widgetId: Int,
-        data: CalendarData,
-        now: Long,
-    ) {
-        val heightDp = manager.getAppWidgetOptions(widgetId)
-            .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-        val maxChips = maxChipsFor(heightDp)
-
+    private fun applyDayStrip(context: Context, views: RemoteViews, data: CalendarData) {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        val week = CalendarParser.buildWeek(data, today, maxChips, zone)
+        val hasEvents = CalendarParser.buildDayStrip(data, today, zone)
 
-        week.forEachIndexed { d, plan ->
-            views.setTextViewText(WDAY_IDS[d], weekdayLabel(context, today, plan.date))
-            // 只放日号。写成 "9/11" 的话是 5 个字符的 monospace，11dp 下要 33dp，
-            // 而每列只有 31.7dp —— 必被省略号截掉。
-            views.setTextViewText(DATE_IDS[d], plan.date.dayOfMonth.toString())
+        hasEvents.forEachIndexed { i, has ->
+            val date = today.plusDays(i.toLong())
+            // 今天固定写「今」，其余写星期几（去掉「周」字，一格只有十几 dp）
+            val label = if (i == 0) "今" else WDAY_CN[date.dayOfWeek.value - 1].removePrefix("周")
 
-            var slot = 0
-            plan.chips.forEach { e ->
-                if (slot < MAX_CHIPS_PER_DAY) {
-                    applyChip(context, views, CHIP_IDS[d][slot], e.cat, e.isPast(now))
-                    views.setTextViewText(CHIP_IDS[d][slot], e.short)
-                    slot++
-                }
-            }
-            // 项目数超过槽位时，最后一条位置换成「+N」，表示还有别的项目没显示。
-            // 这一条不参与类别着色，用中性灰。
-            if (plan.hiddenCats > 0 && slot < MAX_CHIPS_PER_DAY) {
-                val id = CHIP_IDS[d][slot]
-                views.setViewVisibility(id, View.VISIBLE)
-                views.setTextViewText(id, "+${plan.hiddenCats}")
-                views.setInt(id, "setBackgroundResource", R.drawable.bg_pill_more)
-                views.setTextColor(id, ContextCompat.getColor(context, R.color.on_pill))
-                slot++
-            }
-
-            for (s in slot until MAX_CHIPS_PER_DAY) {
-                views.setViewVisibility(CHIP_IDS[d][s], View.GONE)
-            }
+            views.setTextViewText(DAY_IDS[i], label)
+            views.setInt(
+                DAY_IDS[i], "setBackgroundResource",
+                if (has) R.drawable.bg_daychip_on else R.drawable.bg_daychip_off,
+            )
+            views.setTextColor(
+                DAY_IDS[i],
+                ContextCompat.getColor(
+                    context,
+                    when {
+                        // 今天最重，有比赛次之，没比赛最轻 —— 三级区分
+                        i == 0 -> R.color.accent_text
+                        has -> R.color.text_primary
+                        else -> R.color.text_muted
+                    },
+                ),
+            )
         }
     }
 
-    private fun applyChip(context: Context, views: RemoteViews, id: Int, cat: Cat, past: Boolean) {
-        views.setViewVisibility(id, View.VISIBLE)
+    // ── 列表接线 ──────────────────────────────────────────────────────
 
-        if (CHIP_USE_BACKGROUND_RESOURCE) {
-            // 5 个预置 drawable 来回切。不能用运行时 tint —— 那条路（setBackgroundTintList /
-            // setColorStateList）是 API 31 才可靠的，minSdk 26 上会直接抛异常。
-            // 详见 bg_dot.xml 的说明。
-            views.setInt(id, "setBackgroundResource", cat.pillRes)
-        } else {
-            // 兜底：丢圆角，但一定不抛异常
-            views.setInt(id, "setBackgroundColor", ContextCompat.getColor(context, cat.dotColorRes))
+    @Suppress("DEPRECATION")
+    private fun attachList(context: Context, views: RemoteViews, widgetId: Int) {
+        // data 设成自己的 URI，让每个小组件实例拿到独立的 service 连接。
+        // 不这么做的话，桌面放了两个小组件时它们会互相串数据。
+        val svcIntent = Intent(context, WidgetService::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
         }
-        views.setTextColor(id, ContextCompat.getColor(context, R.color.on_pill))
 
-        // 今天已经打完的场次压暗，一眼区分「还有的看」和「已经过去了」。
-        //
-        // ⚠️ 必须判版本：`View.setAlpha(float)` 直到 **API 31** 才被加上
-        // `@RemotableViewMethod`。在 Android 8~11 上调它会抛
-        //     RemoteViews$ActionException: view: android.widget.TextView
-        //         can't use method with RemoteViews: setAlpha(float)
-        // 而 ActionException 会让**这一次 updateAppWidget 整体失败** ——
-        // 桌面显示「载入小组件时出现问题」或停在旧内容。
-        //
-        // 症状特别阴：空态时没有 chip、走不到这里，一切正常；
-        // **第一次成功拉到数据之后小组件才坏**，而且不崩不报错，只看得到桌面空白。
-        //
-        // 31 以下的代价是「已结束」不再压暗（App 里仍会标出来）。
-        // 不要试图用 setInt("setAlpha") 顶替 —— 那是 ImageView.setAlpha(int)，
-        // 在 TextView 上找不到这个方法，照样抛。
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            views.setFloat(id, "setAlpha", if (past) 0.45f else 1f)
-        }
+        // setRemoteAdapter(int, Intent) 在 API 31 被标记为废弃（换成了
+        // RemoteCollectionItems 那套），但**仍然可用**，而且兼容 minSdk 26。
+        // 新 API 要求 31+，用了就得写两套，不值得。
+        views.setRemoteAdapter(android.R.id.list, svcIntent)
+
+        // 一张卡都没有时显示提示文字，靠系统自动切换显隐，不用手写判断
+        views.setEmptyView(android.R.id.list, R.id.tv_empty)
+
+        // 集合控件里的点击必须走「模板 + 每项填充」这条路：
+        // 模板挂在 ListView 上，点哪一项都会带着那一项的填充信息发出去。
+        // 这里不需要区分点了哪张卡（都是打开 App），所以不设 fillInIntent。
+        views.setPendingIntentTemplate(
+            android.R.id.list,
+            PendingIntent.getActivity(
+                context, 2,
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ),
+        )
     }
 
-    /** 今天 / 明天 / 周X */
-    private fun weekdayLabel(context: Context, today: LocalDate, date: LocalDate): String =
-        when (date) {
-            today -> context.getString(R.string.wday_today)
-            today.plusDays(1) -> context.getString(R.string.wday_tomorrow)
-            else -> WDAY_NAMES[date.dayOfWeek.value - 1]
-        }
+    // ── 顶栏状态 ──────────────────────────────────────────────────────
 
     /**
-     * 顶栏那行状态。
-     *
      * ⚠️ 显示的是**数据生成时间**（后端写进 JSON 的 generated_at），不是手机最后拉取的时间。
      *
      * 这个区别很关键：Actions 挂掉之后，手机每 6 小时照样能成功拉到同一份**旧** JSON
      * （CDN 有缓存，HTTP 200，一切正常）。如果显示「最后拉取时间」，界面上永远看着是新鲜的，
-     * 「后端停了」这个问题会被完全掩盖。显示数据自己的生成时间才暴露得出来。
+     * 「后端停了」这个问题会被完全掩盖。
      */
     private fun applyStatus(
         context: Context,
@@ -312,7 +247,7 @@ object WidgetRenderer {
         now: Long,
         statusOverride: String?,
     ) {
-        // 只有「**拿到过**数据、但数据已经过期」才算异常。
+        // 只有「拿到过数据、但已经过期」才算异常。
         // 从没获取过是另一回事（还没配好），那时候报警色只会让人以为是坏了。
         val hasData = data.generatedAtMs > 0L
         val stale = hasData && stalenessMs(data.generatedAtMs, now) > STALE_AFTER_MS
@@ -324,7 +259,7 @@ object WidgetRenderer {
                 val stamp = Instant.ofEpochMilli(data.generatedAtMs)
                     .atZone(ZoneId.systemDefault())
                     .format(STAMP_FMT)
-                "${if (stale) "⚠ " else ""}$stamp 更新"
+                "${if (stale) "⚠ " else ""}$stamp"
             }
         }
 
@@ -338,9 +273,9 @@ object WidgetRenderer {
         )
     }
 
-    private fun applyClicks(context: Context, views: RemoteViews) {
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    // ── 点击 ──────────────────────────────────────────────────────────
 
+    private fun applyClicks(context: Context, views: RemoteViews) {
         // 刷新挂在**整条顶栏**上，不是那个 18dp 的图标 ——
         // 18dp 低于 48dp 的最小触控区，边缘点击会被启动器的缩放手柄吃掉。
         views.setOnClickPendingIntent(
@@ -348,16 +283,7 @@ object WidgetRenderer {
             PendingIntent.getBroadcast(
                 context, 1,
                 Intent(context, WidgetProvider::class.java).setAction(WidgetProvider.ACTION_REFRESH),
-                flags,
-            ),
-        )
-
-        views.setOnClickPendingIntent(
-            R.id.widget_root,
-            PendingIntent.getActivity(
-                context, 2,
-                Intent(context, MainActivity::class.java),
-                flags,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             ),
         )
     }

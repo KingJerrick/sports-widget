@@ -3,14 +3,14 @@
   小组件在选择器里的预览（API 31+ 走 widget_info.xml 的 previewLayout，31 以下走 previewImage）。
 
   为什么必须单独写一份、不能复用 widget_sports.xml：
-  主布局里 21 个 chip 的初始状态是 visibility="gone"，内容由 WidgetRenderer 在渲染时填。
-  而系统在小部件选择器里渲染预览时**不会跑我们的代码** —— 指向主布局的话，
-  用户看到的是一片只有星期和日期的空白网格，很可能就不拖了。
+  主布局里那个 ListView 是**空的**，卡片由 WidgetService 在运行时逐行提供。
+  而系统在小部件选择器里渲染预览时**根本不会连那个 service** ——
+  指向主布局的话，用户看到的是一块空白框，很可能就不拖了。
 
-  所以这份是「静态假数据版」：结构、尺寸、配色与主布局完全一致，
-  只是把 chip 的文字、颜色、可见性都写死，摆出一周有比赛的样子。
+  所以这份是「静态假数据版」：顶栏、七天条、卡片的样子和主布局保持一致，
+  只是把三张卡的图片、文字都写死。
 
-  改动主布局时这份也要跟着改，否则预览和实际长得不一样。
+  改动主布局或卡片布局时，这份也要跟着改，否则预览和实际长得不一样。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -32,320 +32,201 @@
             android:background="@drawable/bg_mark"
             android:minHeight="0dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="5dp"
-            android:includeFontPadding="false"
-            android:letterSpacing="0.08"
-            android:minHeight="0dp"
-            android:padding="0dp"
-            android:text="@string/widget_title"
-            android:textColor="@color/accent_text"
-            android:textSize="10dp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="6dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_f1"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_mgp"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_cs2"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_football"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_lol"
-            android:minHeight="0dp" />
-
-        <TextView
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="5dp"
             android:layout_weight="1"
-            android:ellipsize="end"
-            android:gravity="end"
-            android:includeFontPadding="false"
-            android:maxLines="1"
-            android:minHeight="0dp"
-            android:padding="0dp"
-            android:text="9/11 更新"
-            android:textColor="@color/text_muted"
-            android:textSize="9dp" />
+            android:layoutDirection="ltr"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_on"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="今" android:textColor="@color/accent_text" android:textSize="9dp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_on"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="六" android:textColor="@color/text_primary" android:textSize="9dp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_on"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="日" android:textColor="@color/text_primary" android:textSize="9dp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_on"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="一" android:textColor="@color/text_primary" android:textSize="9dp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_off"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="二" android:textColor="@color/text_muted" android:textSize="9dp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_off"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="三" android:textColor="@color/text_muted" android:textSize="9dp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:background="@drawable/bg_daychip_on"
+                android:gravity="center" android:includeFontPadding="false"
+                android:minHeight="0dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+                android:text="四" android:textColor="@color/text_primary" android:textSize="9dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="6dp" android:includeFontPadding="false"
+            android:minHeight="0dp" android:padding="0dp"
+            android:text="9/11 09:38" android:textColor="@color/text_muted" android:textSize="9dp" />
 
         <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="4dp"
-            android:contentDescription="@string/action_refresh"
-            android:padding="3dp"
-            android:src="@drawable/ic_refresh" />
+            android:layout_width="18dp" android:layout_height="18dp"
+            android:layout_marginStart="4dp" android:contentDescription="@string/action_refresh"
+            android:padding="3dp" android:src="@drawable/ic_refresh" />
     </LinearLayout>
 
-    <!-- ══ 七天（样例数据，五个类别色都出现一次）══ -->
+    <!-- ══ 三张样例卡片 ══ -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="4dp"
         android:layout_weight="1"
-        android:baselineAligned="false"
-        android:layoutDirection="ltr"
-        android:orientation="horizontal">
+        android:orientation="vertical">
 
-        <!-- 今天 · F1 两节 -->
+        <!-- F1 · 西班牙站 -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@drawable/bg_card" android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp" android:paddingTop="5dp"
+            android:paddingEnd="8dp" android:paddingBottom="5dp">
             <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="今天" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="11" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
+                android:layout_width="28dp" android:layout_height="28dp"
+                android:background="@drawable/bg_pill_f1" android:gravity="center"
+                android:includeFontPadding="false" android:minHeight="0dp"
+                android:text="F1" android:textColor="@color/on_pill" android:textSize="9dp" />
             <LinearLayout
-                android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_marginTop="4dp" android:layout_weight="1"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" android:layout_weight="1"
                 android:orientation="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:baselineAligned="false" android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:includeFontPadding="false"
+                        android:minHeight="0dp" android:padding="0dp"
+                        android:text="F1 · 西班牙站" android:textColor="@color/text_primary"
+                        android:textSize="11dp" />
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp" android:includeFontPadding="false"
+                        android:minHeight="0dp" android:padding="0dp"
+                        android:text="今天 19:30" android:textColor="@color/text_secondary"
+                        android:textSize="9dp" />
+                </LinearLayout>
                 <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1" android:gravity="center"
-                    android:includeFontPadding="false" android:maxLines="1" android:minHeight="0dp"
-                    android:text="FP1" android:textColor="@color/on_pill" android:textSize="7dp" />
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:layout_marginTop="2dp" android:background="@drawable/bg_pill_f1"
-                    android:gravity="center" android:includeFontPadding="false" android:maxLines="1"
-                    android:minHeight="0dp" android:text="排位"
-                    android:textColor="@color/on_pill" android:textSize="7dp" />
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp" android:includeFontPadding="false"
+                    android:minHeight="0dp" android:padding="0dp"
+                    android:text="FP1 · FP2 · 排位 · 正赛" android:textColor="@color/text_muted"
+                    android:textSize="9dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 周六 · F1 两节 -->
+        <!-- MotoGP · RSM站 -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_card" android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp" android:paddingTop="5dp"
+            android:paddingEnd="8dp" android:paddingBottom="5dp">
             <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="周六" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="12" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
+                android:layout_width="28dp" android:layout_height="28dp"
+                android:background="@drawable/bg_pill_mgp" android:gravity="center"
+                android:includeFontPadding="false" android:minHeight="0dp"
+                android:text="GP" android:textColor="@color/on_pill" android:textSize="9dp" />
             <LinearLayout
-                android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_marginTop="4dp" android:layout_weight="1"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" android:layout_weight="1"
                 android:orientation="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:baselineAligned="false" android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:includeFontPadding="false"
+                        android:minHeight="0dp" android:padding="0dp"
+                        android:text="MotoGP · RSM站" android:textColor="@color/text_primary"
+                        android:textSize="11dp" />
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp" android:includeFontPadding="false"
+                        android:minHeight="0dp" android:padding="0dp"
+                        android:text="今天 21:00" android:textColor="@color/text_secondary"
+                        android:textSize="9dp" />
+                </LinearLayout>
                 <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1" android:gravity="center"
-                    android:includeFontPadding="false" android:maxLines="1" android:minHeight="0dp"
-                    android:text="FP3" android:textColor="@color/on_pill" android:textSize="7dp" />
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:layout_marginTop="2dp" android:background="@drawable/bg_pill_f1"
-                    android:gravity="center" android:includeFontPadding="false" android:maxLines="1"
-                    android:minHeight="0dp" android:text="冲刺"
-                    android:textColor="@color/on_pill" android:textSize="7dp" />
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp" android:includeFontPadding="false"
+                    android:minHeight="0dp" android:padding="0dp"
+                    android:text="FP1 · 练习 · 排位 · 冲刺 · 正赛" android:textColor="@color/text_muted"
+                    android:textSize="9dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 周日 · F1 正赛 -->
+        <!-- IG · LPL 淘汰赛 -->
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_card" android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp" android:paddingTop="5dp"
+            android:paddingEnd="8dp" android:paddingBottom="5dp">
             <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="周日" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="13" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
+                android:layout_width="28dp" android:layout_height="28dp"
+                android:background="@drawable/bg_pill_lol" android:gravity="center"
+                android:includeFontPadding="false" android:minHeight="0dp"
+                android:text="IG" android:textColor="@color/on_pill" android:textSize="9dp" />
             <LinearLayout
-                android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_marginTop="4dp" android:layout_weight="1"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" android:layout_weight="1"
                 android:orientation="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:baselineAligned="false" android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:includeFontPadding="false"
+                        android:minHeight="0dp" android:padding="0dp"
+                        android:text="IG · LPL 淘汰赛" android:textColor="@color/text_primary"
+                        android:textSize="11dp" />
+                    <TextView
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp" android:includeFontPadding="false"
+                        android:minHeight="0dp" android:padding="0dp"
+                        android:text="明天 17:00" android:textColor="@color/text_secondary"
+                        android:textSize="9dp" />
+                </LinearLayout>
                 <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1" android:gravity="center"
-                    android:includeFontPadding="false" android:maxLines="1" android:minHeight="0dp"
-                    android:text="正赛" android:textColor="@color/on_pill" android:textSize="7dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 周一 · 空 -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="周一" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="14" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- 周二 · CS2 猎鹰 -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="周二" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="15" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
-            <LinearLayout
-                android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_marginTop="4dp" android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_cs2" android:gravity="center"
-                    android:includeFontPadding="false" android:maxLines="1" android:minHeight="0dp"
-                    android:text="NaVi" android:textColor="@color/on_pill" android:textSize="7dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 周三 · 皇马 -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="周三" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="16" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
-            <LinearLayout
-                android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_marginTop="4dp" android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_football" android:gravity="center"
-                    android:includeFontPadding="false" android:maxLines="1" android:minHeight="0dp"
-                    android:text="巴萨" android:textColor="@color/on_pill" android:textSize="7dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- 周四 · MotoGP 两节 + IG -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:gravity="center" android:includeFontPadding="false"
-                android:maxLines="1" android:minHeight="0dp" android:padding="0dp"
-                android:text="周四" android:textColor="@color/text_secondary" android:textSize="8dp" />
-            <TextView
-                android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:fontFamily="monospace" android:gravity="center"
-                android:includeFontPadding="false" android:maxLines="1"
-                android:minHeight="0dp" android:padding="0dp"
-                android:text="17" android:textColor="@color/text_primary"
-                android:textSize="11dp" android:textStyle="bold" />
-            <LinearLayout
-                android:layout_width="match_parent" android:layout_height="0dp"
-                android:layout_marginTop="4dp" android:layout_weight="1"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_mgp" android:gravity="center"
-                    android:includeFontPadding="false" android:maxLines="1" android:minHeight="0dp"
-                    android:text="FP1" android:textColor="@color/on_pill" android:textSize="7dp" />
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:layout_marginTop="2dp" android:background="@drawable/bg_pill_mgp"
-                    android:gravity="center" android:includeFontPadding="false" android:maxLines="1"
-                    android:minHeight="0dp" android:text="正赛"
-                    android:textColor="@color/on_pill" android:textSize="7dp" />
-                <TextView
-                    android:layout_width="match_parent" android:layout_height="13dp"
-                    android:layout_marginTop="2dp" android:background="@drawable/bg_pill_lol"
-                    android:gravity="center" android:includeFontPadding="false" android:maxLines="1"
-                    android:minHeight="0dp" android:text="BLG"
-                    android:textColor="@color/on_pill" android:textSize="7dp" />
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp" android:includeFontPadding="false"
+                    android:minHeight="0dp" android:padding="0dp"
+                    android:text="vs Anyone's Legend" android:textColor="@color/text_muted"
+                    android:textSize="9dp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

@@ -52,6 +52,20 @@
                 android:resource="@xml/widget_info" />
         </receiver>
 
+        <!--
+          给小组件里那个可滚动的卡片列表供数据。
+
+          两个属性都不能少：
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+              只有持有这个权限的进程（启动器）能绑定它，别人绑不上。
+            android:exported="false"
+              它绑得上就够了，不对外暴露。
+        -->
+        <service
+            android:name=".WidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
     </application>
 
 </manifest>

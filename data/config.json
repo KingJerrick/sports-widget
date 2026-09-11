@@ -7,30 +7,40 @@
     "lolesports 的 leagueId：LPL=98767991314006698  LCK=98767991310872058  LEC=98767991302996019",
     "                          LCS=98767991299243165  MSI=98767991325878492  Worlds=98767975604431411"
   ],
-
   "f1": {
     "enabled": true,
     "label": "F1",
     "_sessions": "Jolpica 里出现哪个字段就抓哪个。常规周末是 FP1/FP2/FP3/排位，冲刺周末没有二三练、多出冲刺排位和冲刺赛",
-    "sessions": ["FirstPractice", "SecondPractice", "ThirdPractice", "Qualifying", "SprintQualifying", "Sprint", "Race"]
+    "sessions": [
+      "FirstPractice",
+      "SecondPractice",
+      "ThirdPractice",
+      "Qualifying",
+      "SprintQualifying",
+      "Sprint",
+      "Race"
+    ],
+    "_mark": "图标拉不到时，卡片左侧显示的字母块标记",
+    "mark": "F1"
   },
-
   "motogp": {
     "enabled": true,
     "label": "MotoGP",
     "_class": "只抓这个组别。MotoGP 一个周末同时有 Moto2/Moto3，不过滤会把三组比赛全混进来",
-    "class": "MotoGP"
+    "class": "MotoGP",
+    "_mark": "同上。MotoGP 六个字母放不下，用 GP",
+    "mark": "GP"
   },
-
   "cs2": {
     "enabled": true,
     "label": "CS2",
     "team": "Team Falcons",
     "teamLabel": "猎鹰",
     "_note_sofascoreId": "409766 是猎鹰的 CS2 分队。千万不要填 498383 —— 那是它的 Dota 2 分队",
-    "sofascoreId": 409766
+    "sofascoreId": 409766,
+    "_mark": "同上",
+    "mark": "猎鹰"
   },
-
   "football": {
     "enabled": true,
     "label": "足球",
@@ -39,22 +49,56 @@
     "sofascoreId": 2829,
     "_opponentCn": "对手短名中文覆盖表，按 Sofascore 的 nameCode 查。最多 3 个汉字 —— 小组件每列只放得下这些；查不到就直接用 3 字母代号",
     "opponentCn": {
-      "BAR": "巴萨", "ATM": "马竞", "SEV": "塞维", "VAL": "瓦伦", "RAY": "巴列卡",
-      "GET": "赫塔费", "BET": "贝蒂斯", "ATH": "毕巴", "SOC": "皇社", "VIL": "比利亚",
-      "OSA": "奥萨苏", "CEL": "塞尔塔", "MAL": "马略卡", "GIR": "赫罗纳", "ALA": "阿拉维",
-      "LEG": "莱加内", "LPA": "拉斯帕", "ELC": "埃尔切", "LEV": "莱万特",
-      "MUN": "曼联", "MCI": "曼城", "LIV": "利物浦", "ARS": "阿森纳", "CHE": "切尔西",
-      "TOT": "热刺", "NEW": "纽卡", "BVB": "多特", "BAY": "拜仁", "JUV": "尤文",
-      "INT": "国米", "MIL": "米兰", "NAP": "那不勒", "ROM": "罗马", "ATA": "亚特兰",
-      "PSG": "巴黎", "POR": "波尔图", "BEN": "本菲卡", "SPO": "里斯本", "AJA": "阿贾克"
-    }
+      "BAR": "巴萨",
+      "ATM": "马竞",
+      "SEV": "塞维",
+      "VAL": "瓦伦",
+      "RAY": "巴列卡",
+      "GET": "赫塔费",
+      "BET": "贝蒂斯",
+      "ATH": "毕巴",
+      "SOC": "皇社",
+      "VIL": "比利亚",
+      "OSA": "奥萨苏",
+      "CEL": "塞尔塔",
+      "MAL": "马略卡",
+      "GIR": "赫罗纳",
+      "ALA": "阿拉维",
+      "LEG": "莱加内",
+      "LPA": "拉斯帕",
+      "ELC": "埃尔切",
+      "LEV": "莱万特",
+      "MUN": "曼联",
+      "MCI": "曼城",
+      "LIV": "利物浦",
+      "ARS": "阿森纳",
+      "CHE": "切尔西",
+      "TOT": "热刺",
+      "NEW": "纽卡",
+      "BVB": "多特",
+      "BAY": "拜仁",
+      "JUV": "尤文",
+      "INT": "国米",
+      "MIL": "米兰",
+      "NAP": "那不勒",
+      "ROM": "罗马",
+      "ATA": "亚特兰",
+      "PSG": "巴黎",
+      "POR": "波尔图",
+      "BEN": "本菲卡",
+      "SPO": "里斯本",
+      "AJA": "阿贾克"
+    },
+    "_mark": "同上",
+    "mark": "皇马"
   },
-
   "lol": {
     "enabled": true,
     "label": "英雄联盟",
     "team": "Invictus Gaming",
     "teamLabel": "IG",
-    "leagueId": "98767991314006698"
+    "leagueId": "98767991314006698",
+    "_mark": "同上",
+    "mark": "IG"
   }
 }

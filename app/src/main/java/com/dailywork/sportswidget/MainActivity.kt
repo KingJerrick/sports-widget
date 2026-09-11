@@ -31,10 +31,10 @@ import java.util.Locale
  *
  * 四段：① 赛程列表 ② 颜色图例 ③ 数据源状态 ④ 设置 + 自检。
  *
- * ── 赛程列表为什么显示全部、而小组件只显示 3 条 ──────────────────────────
- * 小组件每列 28.7dp 宽、放 3 条，是物理限制；这里是可滚动的，没理由再砍。
- * 小组件的取舍规则（哪个项目优先、什么时候出「+N」）在
- * [CalendarParser.selectChips] 里，图例下面那段说明也写了同一件事。
+ * ── 这里的赛程列表和小组件上的卡片有什么关系 ────────────────────────────
+ * 小组件把「一个比赛周末」归并成一张卡（见 [CalendarParser.buildCards]），
+ * 适合扫一眼；这里则把每一场都平铺开，适合细看某天到底几点打什么。
+ * 两者读的是同一份数据，只是切法不同。
  */
 class MainActivity : AppCompatActivity() {
 
@@ -54,7 +54,6 @@ class MainActivity : AppCompatActivity() {
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
     private val dateFmt = DateTimeFormatter.ofPattern("M/d", Locale.US)
     private val stampFmt = DateTimeFormatter.ofPattern("M/d HH:mm", Locale.US)
-    private val wdayNames = arrayOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,7 +114,7 @@ class MainActivity : AppCompatActivity() {
         val data = Prefs.loadData(this)
         renderStatusLine(data)
         renderSchedule(data)
-        renderLegend()
+        renderLegend(data)
         renderSources(data)
     }
 
@@ -163,9 +162,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderLegend() {
+    /**
+     * 图例。名字和标记都取**后端下发的**值，不是写死在代码里的 ——
+     * 改了 data/config.json 换队伍之后，这里会跟着变，不用重新装 App。
+     */
+    private fun renderLegend(data: CalendarData) {
         boxLegend.removeAllViews()
         Cat.entries.forEach { cat ->
+            val label = data.labels[cat.key] ?: cat.label
+            val mark = data.marks[cat.key] ?: label.take(2)
+            val hasLogo = LogoStore.cached(data.logos[cat.key]) != null
+            val icon = if (hasLogo) "图标已缓存" else "字母块「$mark」"
+
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = lp(matchWidth = true).apply { topMargin = dp(6f) }
@@ -173,7 +181,7 @@ class MainActivity : AppCompatActivity() {
             row.addView(dot(cat))
             row.addView(
                 TextView(this).apply {
-                    text = "${cat.label}   →   小组件里显示 ${sampleShortFor(cat)}"
+                    text = "$label   →   卡片左侧显示$icon"
                     textSize = 12f
                     setTextColor(color(R.color.text_secondary))
                     layoutParams = lp().apply { marginStart = dp(8f) }
@@ -287,17 +295,18 @@ class MainActivity : AppCompatActivity() {
             appendLine("  ${s.cat.label}: ${if (s.ok) "正常" else "失败"} ${s.count} 场 ${s.error.orEmpty()}")
         }
         appendLine()
-        appendLine("未来七天：")
+        appendLine("小组件会显示成这些卡片：")
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        val week = CalendarParser.buildWeek(parsed, today, 3, zone)
-        week.forEach { plan ->
-            val chips = plan.chips.joinToString(" | ") { it.short } +
-                    if (plan.hiddenCats > 0) " | +${plan.hiddenCats}" else ""
-            appendLine("  ${dateFmt.format(plan.date)}  ${chips.ifBlank { "—" }}")
+        val cards = CalendarParser.buildCards(parsed, now, 20)
+        if (cards.isEmpty()) appendLine("  （没有待进行的赛事）")
+        cards.forEach { c ->
+            val icon = if (LogoStore.cached(c.logoUrl) != null) "图标" else "字母块 ${c.mark}"
+            appendLine("  [${c.cat.key}] ${c.title}  ${formatCardTime(c.nextStartMs, today, zone)}")
+            appendLine("        ${c.detail}   （$icon）")
         }
         appendLine()
-        appendLine("（上面就是小组件会显示的内容，按 3 条算）")
+        appendLine("图标拉不到就退回字母块，卡片不会开天窗。")
         appendLine()
         appendLine("返回结构：")
         appendLine(CalendarParser.describeStructure(raw, limit = 25))
@@ -369,15 +378,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dayLabel(today: LocalDate, date: LocalDate): String = when (date) {
-        today -> "今天  ${dateFmt.format(date)}  ${wdayNames[date.dayOfWeek.value - 1]}"
-        today.plusDays(1) -> "明天  ${dateFmt.format(date)}  ${wdayNames[date.dayOfWeek.value - 1]}"
-        else -> "${wdayNames[date.dayOfWeek.value - 1]}  ${dateFmt.format(date)}"
-    }
-
-    /** 图例里给个例子，说明这个类别在小组件里长什么样。 */
-    private fun sampleShortFor(cat: Cat): String = when (cat) {
-        Cat.F1, Cat.MOTOGP -> "正赛 / 排位 / FP1"
-        Cat.CS2, Cat.FOOTBALL, Cat.LOL -> "对手短名，如 NaVi / 巴萨 / BLG"
+        today -> "今天  ${dateFmt.format(date)}  ${WDAY_CN[date.dayOfWeek.value - 1]}"
+        today.plusDays(1) -> "明天  ${dateFmt.format(date)}  ${WDAY_CN[date.dayOfWeek.value - 1]}"
+        else -> "${WDAY_CN[date.dayOfWeek.value - 1]}  ${dateFmt.format(date)}"
     }
 
     private fun color(resId: Int): Int = ContextCompat.getColor(this, resId)

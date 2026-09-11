@@ -1,61 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  4×2 小组件布局（标称 250×110dp）：顶栏 + 7 列，每列「星期 / 日期 / 最多 3 条赛事」。
+  4×2 小组件布局（标称 250×110dp）：一条顶栏 + 一个可滚动的卡片列表。
 
-  ══ 尺寸账（改字号、间距、内边距之前先看这段）══════════════════════════
+  ══ 尺寸账（改字号、间距之前先看这段）══════════════════════════════════
 
-    固定部分（不随小组件高度变化）
-      根 padding 上下 8*2                                     = 16
-      顶栏（是 max(子 view) 而不是写死值，见下）               = 18   ← 刷新图标 18dp 撑出来的
-      顶栏 → 星期行间距                                        =  4
-      星期行 8dp（含 includeFontPadding=false，行高约 9.4）     ≈ 10
-      日期行 11dp monospace（行高约 14）                        ≈ 14
-      日期行 → chip 区间距                                     =  4
-      ─────────────────────────────────────────────────────────────
-      固定部分合计                                             = 66
+    根 padding 上下 8*2                                       = 16
+    顶栏（是 max(子 view)，刷新图标 18dp 撑出来的）             = 18
+    顶栏 → 列表间距                                            =  4
+    ───────────────────────────────────────────────────────────────
+    固定部分合计                                               = 38
+    列表区 layout_weight=1，吸收剩余：110 - 38 = 72dp
 
-    chip 区 layout_weight=1，吸收剩余高度：110 - 66 = 44dp
-      每条 chip 13dp，两条之间 2dp → 3 条 = 13*3 + 2*2 = 43dp ✅ 放得下
-      只有 1dp 余量，所以下面这些一定要守住：
-        · 每个 TextView 都写 includeFontPadding="false"（漏一个就 +2~4dp）
-        · 每个 TextView 都写 minHeight="0dp" padding="0dp"
-          （小组件是在**启动器的主题**里 inflate 的，会继承启动器的 textViewStyle，
-            MIUI 和 AOSP 的默认 padding/minHeight 不一样）
-        · 字号一律用 dp 不用 sp（见下）
+    一张卡片 38dp + 卡片间距 4dp = 42dp → **4×2 里可见约 1.7 张**。
+    这不是排版没做好，是物理限制：卡片要放「图标 + 标题 + 时间 + 副标题」，
+    38dp 已经是压到极限了。往下滑看其余，或者把小组件拖高 ——
+    代码允许拖到 180dp，那时可见约 3.4 张。
 
-    宽度（250dp）
-      250 - 根 padding 16 - 6 处栏间距 2*6=12 = 222 → 每列 31.7dp
-      chip 左右内边距 1.5*2 = 3 → chip 内可用宽 28.7dp
-      7dp 字号下：汉字约 7dp、拉丁约 4.2dp → 能放 3 个汉字或 6 个拉丁字符
-      这就是后端把 short 截断到「≤3 汉字 / ≤6 拉丁」的由来（见 tools/fetch_calendar.py）
+  ══ 顶栏为什么把「标题」换成了「品牌竖条」════════════════════════════
 
-  ══ 为什么字号写 dp 不写 sp ═════════════════════════════════════════
+  顶栏这一行要放四样东西：身份标识、七天迷你条、数据更新时间、刷新按钮。
+  250dp 减掉左右内边距只有 234dp，写「赛事日历」四个字要 40dp，
+  七天条就没地方了。换成 3dp 的竖条，身份还在（那一抹颜色就是），
+  省下的宽度全给迷你条。
 
-  sp 是在**启动器的 Configuration** 里解析的（布局由启动器 inflate），所以系统的
-  「字体大小」设置百分之百会影响小组件。Android 14 又把非线性字体缩放的上限拉到
-  200%，且小于 20sp 的文字按满额放大 —— 7sp 在 fontScale 1.5 下会变成 10.5sp。
+  ══ 可滚动是怎么实现的 ═══════════════════════════════════════════════
 
-  而小组件**不会滚动、也不会自己长高，溢出就是被裁掉**。所以这里的 textSize 全部用
-  COMPLEX_UNIT_DIP（乘 density，不乘 scaledDensity），天然免疫字体缩放。
-  代价是不再跟随用户的无障碍字号设置 —— 对一个固定 110dp 高的小组件，这是必要取舍。
+  安卓的小组件只有 ListView / GridView 这类「集合控件」能滚动，而且必须：
+
+    · 布局里有一个 id 为 @android:id/list 的 ListView
+    · 配一个 RemoteViewsService + RemoteViewsFactory 提供每一行
+    · 用 setRemoteAdapter 把它接起来（见 WidgetRenderer）
+
+  普通控件（TextView 之类）放在 ListView 外面没问题，所以顶栏这么放是合法的。
 
   ══ RemoteViews 三条红线（踩过的坑，别改）══════════════════════════
 
-    1. 只用 LinearLayout / FrameLayout / TextView / ImageView / ProgressBar 这些控件，
-       裸 View 不用（RemoteViews 只认带 @RemoteView 注解的类）。所以「色块」都是用
-       TextView 加背景实现的，不是 View。
-    2. 一律不写 ?attr/ —— 布局是在启动器的 Context 里 inflate 的，主题属性会按启动器的
-       主题解析，取不到时轻则不显示、重则 inflate 失败。
-    3. 21 个 chip 全部**写死在布局里**，不用 RemoteViews.addView 动态挂。原因：addView
-       会让每次更新产生 21 次嵌套 inflate，全部发生在启动器主线程（MIUI/EMUI 的启动器
-       本来就重），而且嵌套根布局的 layout_margin 在部分启动器上会被丢掉。
-       写死之后渲染只用 setTextViewText / setViewVisibility / setInt 这些一等公民方法。
-
-  ══ 其它 ═══════════════════════════════════════════════════════════
-    · 日期只显示日号（「11」而不是「9/11」）：5 个字符的 monospace 在 11dp 下要 33dp，
-      超过 31.7dp 的列宽，必被省略号截掉。
-    · days 容器加了 layoutDirection="ltr"：否则 RTL 语言下 7 列会从右往左排，日期倒序。
-    · 21 个 chip 的 id 是 chip_<列>_<序>，WidgetRenderer 里用 CHIP_IDS 二维数组索引。
+    1. 只用 LinearLayout / FrameLayout / TextView / ImageView / ListView 这些框架控件，
+       裸 View 不用，**也不要用 AppCompat 的控件** —— AppCompat 覆写的方法不带
+       @RemotableViewMethod 注解，反射调用会直接失败。
+    2. 一律不写 ?attr/ —— 布局是在启动器的 Context 里 inflate 的。
+    3. 字号一律用 dp 不用 sp（原因见 widget_card.xml）。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -65,7 +49,7 @@
     android:orientation="vertical"
     android:padding="8dp">
 
-    <!-- ══ 顶栏 ══════════════════════════════════════════════════════ -->
+    <!-- ══ 顶栏：品牌竖条 + 七天迷你条 + 状态 + 刷新 ══════════════════ -->
     <LinearLayout
         android:id="@+id/header"
         android:layout_width="match_parent"
@@ -80,76 +64,138 @@
             android:background="@drawable/bg_mark"
             android:minHeight="0dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!--
+          七天迷你条：这七天里哪天有比赛。
+          卡片流回答「比什么赛」，这条回答「哪天有比赛」—— 两个不同的问题。
+          没有它的话一眼看过去完全不知道哪天是空的。
+
+          每格文字是「今 / 六 / 日 / 一 …」，有比赛的日子加一层底色（bg_daychip_on）。
+        -->
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="5dp"
-            android:includeFontPadding="false"
-            android:letterSpacing="0.08"
-            android:minHeight="0dp"
-            android:padding="0dp"
-            android:text="@string/widget_title"
-            android:textColor="@color/accent_text"
-            android:textSize="10dp"
-            android:textStyle="bold" />
+            android:layout_weight="1"
+            android:layoutDirection="ltr"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_day_0"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+
+            <TextView
+                android:id="@+id/tv_day_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+
+            <TextView
+                android:id="@+id/tv_day_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+
+            <TextView
+                android:id="@+id/tv_day_3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+
+            <TextView
+                android:id="@+id/tv_day_4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+
+            <TextView
+                android:id="@+id/tv_day_5"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+
+            <TextView
+                android:id="@+id/tv_day_6"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_daychip_off"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:textColor="@color/text_muted"
+                android:textSize="9dp" />
+        </LinearLayout>
 
         <!--
-          五个图例色点，顺序固定 F1 / MotoGP / CS2 / 足球 / IG，和 App 里的图例表一致。
-          颜色用 XML 的 backgroundTint 给（静态，inflate 时按深浅色模式解析），
-          因为色点不需要在运行时换色 —— 能静态就静态，见 bg_dot.xml 的说明。
-        -->
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="6dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_f1"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_mgp"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_cs2"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_football"
-            android:minHeight="0dp" />
-
-        <TextView
-            android:layout_width="5dp"
-            android:layout_height="5dp"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/bg_dot"
-            android:backgroundTint="@color/cat_lol"
-            android:minHeight="0dp" />
-
-        <!--
-          状态行。平时显示数据生成时间（不是手机拉取时间，见 WidgetRenderer），
-          超过 24 小时未更新会转琥珀色。
+          状态行。显示**数据生成时间**而不是手机拉取时间 —— 后端定时抓取挂掉时，
+          手机照样能成功拉到同一份旧数据，显示拉取时间的话「后端停了」会被完全掩盖。
+          超过 24 小时未更新会转琥珀色。见 WidgetRenderer.applyStatus。
         -->
         <TextView
             android:id="@+id/tv_status"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:gravity="end"
             android:includeFontPadding="false"
             android:maxLines="1"
             android:minHeight="0dp"
@@ -157,10 +203,7 @@
             android:textColor="@color/text_muted"
             android:textSize="9dp" />
 
-        <!--
-          刷新图标只有 18dp，低于 48dp 的最小触控区。所以点击事件挂在**整条顶栏**上，
-          这个图标只是视觉提示，不单独接事件 —— 否则边缘点击会被启动器的缩放手柄吃掉。
-        -->
+        <!-- 刷新图标只有 18dp，低于 48dp 的最小触控区，所以点击事件挂在整条顶栏上 -->
         <ImageView
             android:id="@+id/btn_refresh"
             android:layout_width="18dp"
@@ -171,686 +214,34 @@
             android:src="@drawable/ic_refresh" />
     </LinearLayout>
 
-    <!-- ══ 七天 ══════════════════════════════════════════════════════ -->
-    <LinearLayout
-        android:id="@+id/days"
+    <!-- ══ 卡片列表（可滚动）══════════════════════════════════════════ -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="4dp"
-        android:layout_weight="1"
-        android:baselineAligned="false"
-        android:layoutDirection="ltr"
-        android:orientation="horizontal">
+        android:layout_weight="1">
 
-        <!-- ── 第 0 列：今天 ─────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
+        <!--
+          ListView 的 id 必须是 @android:id/list，系统靠它认出这是个集合控件。
+        -->
+        <ListView
+            android:id="@android:id/list"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:cacheColorHint="@color/transparent"
+            android:divider="@color/transparent"
+            android:dividerHeight="4dp"
+            android:drawSelectorOnTop="true"
+            android:scrollbars="none" />
 
-            <TextView
-                android:id="@+id/tv_wday_0"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_0"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_0"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_0_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_0_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_0_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ── 第 1 列 ───────────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
+        <!-- 一张卡都没有时显示。靠 setEmptyView 自动切换显隐，不用手写逻辑 -->
+        <TextView
+            android:id="@+id/tv_empty"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wday_1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_1"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_1_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_1_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_1_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ── 第 2 列 ───────────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wday_2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_2"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_2_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_2_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_2_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ── 第 3 列 ───────────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wday_3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_3"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_3_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_3_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_3_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ── 第 4 列 ───────────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wday_4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_4"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_4_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_4_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_4_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ── 第 5 列 ───────────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wday_5"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_5"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_5"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_5_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_5_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_5_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- ── 第 6 列 ───────────────────────────────────────────── -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tv_wday_6"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="8dp" />
-
-            <TextView
-                android:id="@+id/tv_date_6"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:textColor="@color/text_primary"
-                android:textSize="11dp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/chips_6"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/chip_6_0"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_6_1"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/chip_6_2"
-                    android:layout_width="match_parent"
-                    android:layout_height="13dp"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_pill_f1"
-                    android:ellipsize="end"
-                    android:gravity="center"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:minHeight="0dp"
-                    android:paddingStart="1.5dp"
-                    android:paddingEnd="1.5dp"
-                    android:textColor="@color/on_pill"
-                    android:textSize="7dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-    </LinearLayout>
+            android:gravity="center"
+            android:text="@string/empty_schedule"
+            android:textColor="@color/text_muted"
+            android:textSize="10dp" />
+    </FrameLayout>
 </LinearLayout>

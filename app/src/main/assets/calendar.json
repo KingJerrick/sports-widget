@@ -1,6 +1,27 @@
 {
-  "generated_at": "2026-09-11T09:40:31Z",
+  "generated_at": "2026-09-11T10:47:47Z",
   "window_days": 60,
+  "labels": {
+    "f1": "F1",
+    "motogp": "MotoGP",
+    "cs2": "猎鹰",
+    "football": "皇马",
+    "lol": "IG"
+  },
+  "logos": {
+    "f1": "https://media.formula1.com/image/upload/c_lfill,w_128,h_128,f_png/q_auto/v1740000001/fom-website/2026/F1%20App%20Store%20Logo/f1-app-logo.svg",
+    "motogp": "https://static.dorna.com/assets/logos/mgp/brand/mgp-favicon-180x180.png",
+    "cs2": "https://api.sofascore.com/api/v1/team/409766/image",
+    "football": "https://api.sofascore.com/api/v1/team/2829/image",
+    "lol": "https://static.lolesports.com/teams/1634762917340_300px-Invictus_Gaming_logo.png"
+  },
+  "marks": {
+    "f1": "F1",
+    "motogp": "GP",
+    "cs2": "猎鹰",
+    "football": "皇马",
+    "lol": "IG"
+  },
   "sources": {
     "f1": {
       "ok": true,
@@ -44,6 +65,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -56,6 +79,8 @@
       "venue": "Madring",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r14",
+      "groupName": "西班牙站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -68,6 +93,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -80,6 +107,8 @@
       "venue": "Madring",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r14",
+      "groupName": "西班牙站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -92,6 +121,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -104,6 +135,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -116,6 +149,8 @@
       "venue": null,
       "source": "lolesports",
       "rank": 3,
+      "group": "lol-117155436343202196",
+      "groupName": "LPL 淘汰赛",
       "url": "https://lolesports.com/schedule"
     },
     {
@@ -128,6 +163,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -140,6 +177,8 @@
       "venue": "Madring",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r14",
+      "groupName": "西班牙站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -152,6 +191,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -164,6 +205,8 @@
       "venue": "Madring",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r14",
+      "groupName": "西班牙站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -176,6 +219,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16416331",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16416331"
     },
     {
@@ -188,6 +233,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -200,6 +247,8 @@
       "venue": "Misano World Circuit Marco Simoncelli",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
+      "groupName": "RSM站",
       "url": null
     },
     {
@@ -212,6 +261,8 @@
       "venue": "Madring",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r14",
+      "groupName": "西班牙站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -224,6 +275,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16416342",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16416342"
     },
     {
@@ -236,6 +289,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -248,6 +303,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -260,6 +317,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -272,6 +331,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -284,6 +345,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -296,6 +359,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -308,6 +373,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -320,6 +387,8 @@
       "venue": "Red Bull Ring - Spielberg",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
+      "groupName": "AUT站",
       "url": null
     },
     {
@@ -332,6 +401,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16416339",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16416339"
     },
     {
@@ -344,6 +415,8 @@
       "venue": "Baku City Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r15",
+      "groupName": "阿塞拜疆站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -356,6 +429,8 @@
       "venue": "Baku City Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r15",
+      "groupName": "阿塞拜疆站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -368,6 +443,8 @@
       "venue": "Baku City Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r15",
+      "groupName": "阿塞拜疆站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -380,6 +457,8 @@
       "venue": "Baku City Circuit",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r15",
+      "groupName": "阿塞拜疆站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -392,6 +471,8 @@
       "venue": "Baku City Circuit",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r15",
+      "groupName": "阿塞拜疆站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -404,6 +485,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -416,6 +499,8 @@
       "venue": "Sepang International Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r16",
+      "groupName": "马来西亚站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -428,6 +513,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -440,6 +527,8 @@
       "venue": "Sepang International Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r16",
+      "groupName": "马来西亚站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -452,6 +541,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -464,6 +555,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -476,6 +569,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -488,6 +583,8 @@
       "venue": "Sepang International Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r16",
+      "groupName": "马来西亚站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -500,6 +597,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -512,6 +611,8 @@
       "venue": "Sepang International Circuit",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r16",
+      "groupName": "马来西亚站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -524,6 +625,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -536,6 +639,8 @@
       "venue": "Mobility Resort Motegi",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-a87453f0-3ed0-4469-993a-1486af92d879",
+      "groupName": "JPN站",
       "url": null
     },
     {
@@ -548,6 +653,8 @@
       "venue": "Sepang International Circuit",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r16",
+      "groupName": "马来西亚站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -560,6 +667,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -572,6 +681,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -584,6 +695,8 @@
       "venue": "Marina Bay Street Circuit",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r17",
+      "groupName": "新加坡站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -596,6 +709,8 @@
       "venue": "Marina Bay Street Circuit",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r17",
+      "groupName": "新加坡站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -608,6 +723,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -620,6 +737,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -632,6 +751,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -644,6 +765,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -656,6 +779,8 @@
       "venue": "Marina Bay Street Circuit",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r17",
+      "groupName": "新加坡站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -668,6 +793,8 @@
       "venue": "Marina Bay Street Circuit",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r17",
+      "groupName": "新加坡站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -680,6 +807,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16421066",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16421066"
     },
     {
@@ -692,6 +821,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -704,6 +835,8 @@
       "venue": "Pertamina Mandalika International Circuit",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
+      "groupName": "INA站",
       "url": null
     },
     {
@@ -716,6 +849,8 @@
       "venue": "Marina Bay Street Circuit",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r17",
+      "groupName": "新加坡站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -728,6 +863,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16938872",
+      "groupName": "UEFA Champions League",
       "url": "https://www.sofascore.com/event/16938872"
     },
     {
@@ -740,6 +877,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16421075",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16421075"
     },
     {
@@ -752,6 +891,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16938770",
+      "groupName": "UEFA Champions League",
       "url": "https://www.sofascore.com/event/16938770"
     },
     {
@@ -764,6 +905,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -776,6 +919,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -788,6 +933,8 @@
       "venue": "Circuit of the Americas",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r18",
+      "groupName": "美国站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -800,6 +947,8 @@
       "venue": "Circuit of the Americas",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r18",
+      "groupName": "美国站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -812,6 +961,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -824,6 +975,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -836,6 +989,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -848,6 +1003,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -860,6 +1017,8 @@
       "venue": "Circuit of the Americas",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r18",
+      "groupName": "美国站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -872,6 +1031,8 @@
       "venue": "Circuit of the Americas",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r18",
+      "groupName": "美国站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -884,6 +1045,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -896,6 +1059,8 @@
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-66961f05-2454-4455-9d65-f99c49d25b17",
+      "groupName": "AUS站",
       "url": null
     },
     {
@@ -908,6 +1073,8 @@
       "venue": "Circuit of the Americas",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r18",
+      "groupName": "美国站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -920,6 +1087,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16421080",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16421080"
     },
     {
@@ -932,6 +1101,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -944,6 +1115,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -956,6 +1129,8 @@
       "venue": "Autódromo Hermanos Rodríguez",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r19",
+      "groupName": "墨西哥站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -968,6 +1143,8 @@
       "venue": "Autódromo Hermanos Rodríguez",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r19",
+      "groupName": "墨西哥站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -980,6 +1157,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -992,6 +1171,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -1004,6 +1185,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -1016,6 +1199,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -1028,6 +1213,8 @@
       "venue": "Autódromo Hermanos Rodríguez",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r19",
+      "groupName": "墨西哥站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1040,6 +1227,8 @@
       "venue": "Autódromo Hermanos Rodríguez",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r19",
+      "groupName": "墨西哥站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1052,6 +1241,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -1064,6 +1255,8 @@
       "venue": "Petronas Sepang International Circuit",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad",
+      "groupName": "MAL站",
       "url": null
     },
     {
@@ -1076,6 +1269,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16421098",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16421098"
     },
     {
@@ -1088,6 +1283,8 @@
       "venue": "Autódromo Hermanos Rodríguez",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r19",
+      "groupName": "墨西哥站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1100,6 +1297,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16939047",
+      "groupName": "UEFA Champions League",
       "url": "https://www.sofascore.com/event/16939047"
     },
     {
@@ -1112,6 +1311,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1124,6 +1325,8 @@
       "venue": "Autódromo José Carlos Pace",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r20",
+      "groupName": "巴西站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1136,6 +1339,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1148,6 +1353,8 @@
       "venue": "Autódromo José Carlos Pace",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r20",
+      "groupName": "巴西站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1160,6 +1367,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1172,6 +1381,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1184,6 +1395,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 2,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1196,6 +1409,8 @@
       "venue": "Autódromo José Carlos Pace",
       "source": "jolpica",
       "rank": 1,
+      "group": "f1-2026-r20",
+      "groupName": "巴西站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1208,6 +1423,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1220,6 +1437,8 @@
       "venue": "Autódromo José Carlos Pace",
       "source": "jolpica",
       "rank": 2,
+      "group": "f1-2026-r20",
+      "groupName": "巴西站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1232,6 +1451,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 1,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1244,6 +1465,8 @@
       "venue": "Autódromo José Carlos Pace",
       "source": "jolpica",
       "rank": 3,
+      "group": "f1-2026-r20",
+      "groupName": "巴西站",
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
@@ -1256,6 +1479,8 @@
       "venue": "Lusail International Circuit",
       "source": "pulselive",
       "rank": 3,
+      "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
+      "groupName": "QAT站",
       "url": null
     },
     {
@@ -1268,6 +1493,8 @@
       "venue": null,
       "source": "sofascore",
       "rank": 3,
+      "group": "sofa-16421105",
+      "groupName": "LaLiga",
       "url": "https://www.sofascore.com/event/16421105"
     }
   ]

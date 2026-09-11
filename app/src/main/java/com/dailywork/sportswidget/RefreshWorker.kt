@@ -91,6 +91,17 @@ object CalendarRefresher {
 
         // 成功：整份替换，错误清空
         Prefs.saveData(context, parsed.copy(error = null))
+
+        // 先把图标下下来再重画。
+        //
+        // 顺序很重要：图标只在内存里查（RemoteViewsFactory 跑在 binder 线程，
+        // 那边不能联网），所以必须先 warmUp 把图放进内存，再让小组件重画，
+        // 否则第一次刷新出来的是字母块，要等下一次刷新才变成真队标。
+        //
+        // 单个图标失败不影响其余（LogoStore 里逐个 try），最坏就是那一个用字母块。
+        // 放 IO 调度器上：这里是阻塞式的网络 + 读盘，Default 调度器不该被这么占。
+        withContext(Dispatchers.IO) { LogoStore.warmUp(context, parsed.logos.values) }
+
         WidgetProvider.updateAll(context)
         return true
     }

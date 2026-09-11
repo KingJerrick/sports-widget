@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  卡片列表里的一行。由 WidgetFactory.getViewAt() 逐行填充。
+
+  ┌────────────────────────────────────────────────────────┐
+  │ ╭────╮  F1 · 西班牙站                    今天 19:30    │
+  │ │ F1 │  FP1 · FP2 · 排位 · 正赛                        │
+  │ ╰────╯                                                 │
+  └────────────────────────────────────────────────────────┘
+   左侧图标        第一行：类别 · 站次/赛事 + 下一场时间
+                   第二行：各场次 / 对手
+
+  ── 左侧为什么要放两个控件叠着 ──────────────────────────────────────
+  FrameLayout 里同时放一个字母块（TextView）和一张图标（ImageView），
+  按情况显示其中一个：
+
+    · 图标已经拉到并缓存好了  -> 显示图标，藏起字母块
+    · 还没拉到 / 离线 / 被拦   -> 显示字母块（分类色底 + 短标记）
+
+  不是「设计上想要两种风格」，是**降级**：图标来自外部站点，拿不到是常态之一，
+  但卡片不能因此开天窗。字母块用分类色，所以就算降级了，一眼也能认出是哪一类。
+
+  ── RemoteViews 红线 ────────────────────────────────────────────────
+  · 只用框架控件。**绝对不要换成 AppCompatTextView 之类** ——
+    AppCompat 覆写的方法不带 @RemotableViewMethod，反射调用会直接抛异常，
+    症状是整张卡片显示成「载入小组件时出现问题」。
+  · 不写 ?attr/。
+  · 字号用 dp 不用 sp：sp 是在**启动器的 Configuration** 里解析的，
+    系统「字体大小」调到最大时（Android 14 能到 200%）7~9dp 的字会撑爆固定高度的卡片。
+  · 每个 TextView 都写 includeFontPadding="false" + minHeight="0dp" + padding="0dp"：
+    小组件是在启动器的主题里 inflate 的，会继承启动器 textViewStyle 的默认内边距，
+    MIUI 和 AOSP 的默认值不一样，不显式清零的话同一份布局在不同 ROM 上高度不同。
+
+  ── 间距为什么写在 ListView 的 divider 上 ────────────────────────────
+  ListView 会丢掉 item 根布局的 layout_margin，所以卡片之间的空隙
+  只能靠 widget_sports.xml 里 ListView 的 dividerHeight 给。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_card"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingTop="5dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="5dp">
+
+    <FrameLayout
+        android:layout_width="28dp"
+        android:layout_height="28dp">
+
+        <!-- 降级用的字母块：分类色底 + 短标记（F1 / GP / 猎鹰 / 皇马 / IG） -->
+        <TextView
+            android:id="@+id/tv_mark"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_pill_f1"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="0dp"
+            android:textColor="@color/on_pill"
+            android:textSize="9dp" />
+
+        <!-- 真实队标 / 赛事标。拿到了就显示它、藏起字母块 -->
+        <ImageView
+            android:id="@+id/iv_logo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- 第一行：类别 · 站次/赛事（左） + 下一场时间（右） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_card_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp" />
+
+            <TextView
+                android:id="@+id/tv_card_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="9dp" />
+        </LinearLayout>
+
+        <!-- 第二行：各场次 / 对手 -->
+        <TextView
+            android:id="@+id/tv_card_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:textColor="@color/text_muted"
+            android:textSize="9dp" />
+    </LinearLayout>
+</LinearLayout>

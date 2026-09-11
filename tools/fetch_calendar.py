@@ -49,6 +49,35 @@ UA = "sports-widget/1.0 (+https://github.com/KingJerrick/sports-widget)"
 # lolesports 网页自己用的公开 key。Riot 随时可能轮换，轮换了改这一行即可。
 LOL_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
 
+# ── 图标地址 ──────────────────────────────────────────────────────────────
+# 每个类别一个图标，App 拉下来缓存到本地，显示在卡片左侧。
+#
+# 为什么是「App 运行时去原站拉」而不是打包进 APK 或提交进仓库：
+#   · 队标是别人的商标，扔进公开仓库算是再分发
+#   · 打进 APK 意味着构建时要联网下载，本机 Android Studio 构建会缺资源
+#   · 运行时拉一次就缓存，之后离线也能显示；拉不到就退回字母块，不会开天窗
+#
+# 全部实测过（见每条的注释），格式都是 Android 的 BitmapFactory 能解的。
+# 想换图标直接在这里改，或者在某类的 config 里加 "logo": "..." 覆盖。
+STATIC_LOGOS = {
+    # F1 官网自己的品牌标。原地址是 SVG（Android 解不了），
+    # 好在 media.formula1.com 是 Cloudinary，加个 f_png 参数就转成 PNG 了。
+    "f1": "https://media.formula1.com/image/upload/c_lfill,w_128,h_128,f_png/q_auto"
+          "/v1740000001/fom-website/2026/F1%20App%20Store%20Logo/f1-app-logo.svg",
+    # MotoGP 母公司 Dorna 的静态资源站，180×180 的 PNG
+    "motogp": "https://static.dorna.com/assets/logos/mgp/brand/mgp-favicon-180x180.png",
+}
+
+
+def sofascore_logo(team_id: int) -> str:
+    """Sofascore 的队徽接口。皇马和猎鹰都从这里取，跟随 config 里的 sofascoreId 走。"""
+    return f"https://api.sofascore.com/api/v1/team/{team_id}/image"
+
+
+# 有些源把队标随数据一起给（比如 lolesports），抓的时候顺手记在这里，
+# main() 最后合并进 logos。
+_discovered_logos: dict = {}
+
 # ── chip 文字的长度上限 ────────────────────────────────────────────────────
 # 小组件每列可用宽约 28.7dp，7dp 字号下能放 3 个汉字或 6 个拉丁字符。
 # 这里按「汉字算 2 个宽度单位、拉丁算 1 个」来量，上限 6 个单位。
@@ -182,7 +211,17 @@ RANK_QUALI = 2  # 排位、冲刺排位
 RANK_PRACTICE = 1
 
 
-def make_event(cat, eid, title, short, start, end, venue, source, rank, url=None):
+def make_event(cat, eid, title, short, start, end, venue, source, rank,
+               group, group_name, url=None):
+    """
+    group / group_name：小组件是按**卡片**显示的，一张卡对应一组赛事。
+
+      赛车项目一个比赛周末是一个整体：F1 西班牙站的 FP1/FP2/排位/正赛
+      应该是**一张**卡（标题「F1 · 西班牙站」，下面列出各场次），
+      而不是五张各说各话的卡。所以同一个周末的场次共用 group。
+
+      队伍类没有这种层级，一场比赛就是一张卡，group 用比赛自己的 id。
+    """
     return {
         "id": eid,
         "cat": cat,
@@ -193,6 +232,8 @@ def make_event(cat, eid, title, short, start, end, venue, source, rank, url=None
         "venue": venue or None,
         "source": source,
         "rank": rank,
+        "group": group,
+        "groupName": group_name,
         "url": url,
     }
 
@@ -278,6 +319,9 @@ def fetch_f1(cfg: dict, lo: datetime, hi: datetime) -> list:
                 venue=venue,
                 source="jolpica",
                 rank=rank,
+                # 同一站的 FP1/FP2/排位/正赛共用一张卡
+                group=f"f1-{season}-r{round_no}",
+                group_name=f"{place}站",
                 url=race_url,
             ))
     return events
@@ -351,6 +395,8 @@ def fetch_motogp(cfg: dict, lo: datetime, hi: datetime) -> list:
                 venue=venue,
                 source="pulselive",
                 rank=rank,
+                group=f"mgp-{ev.get('id')}",
+                group_name=f"{place}站",
             ))
     return events
 
@@ -429,6 +475,9 @@ def fetch_sofascore(cfg: dict, cat: str, lo: datetime, hi: datetime) -> list:
             source="sofascore",
             # 追的队的比赛本来就少，每一场都值得占一格
             rank=RANK_RACE,
+            # 队伍类没有「一个周末」这种层级，一场比赛就是一张卡
+            group=f"sofa-{ev.get('id')}",
+            group_name=tour or "比赛",
             url=f"https://www.sofascore.com/event/{ev.get('id')}",
         ))
     return events
@@ -459,6 +508,12 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
         if not ours:
             continue
 
+        # 队标是随赛程一起给的，顺手记下来给小组件用。
+        # ⚠️ 接口给的是 http:// 地址，Android 9 以后默认禁止明文流量，必须升成 https。
+        img = (ours.get("image") or "").replace("http://", "https://")
+        if img:
+            _discovered_logos["lol"] = img
+
         start = to_utc(ev["startTime"])
         if not (lo <= start <= hi):
             continue
@@ -482,6 +537,8 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
             venue=None,
             source="lolesports",
             rank=RANK_RACE,
+            group=f"lol-{match.get('id')}",
+            group_name=suffix or "比赛",
             url="https://lolesports.com/schedule",
         ))
     return events
@@ -509,9 +566,27 @@ def main() -> int:
 
     all_events: list = []
     health: dict = {}
+    # 类别的显示名和图标地址，给 App 的卡片标题 + 左侧图标用。
+    # 都从 config 里推导，所以改 config 换了队伍，这两张表会自动跟着变。
+    labels: dict = {}
+    logos: dict = {}
+    # 字母块标记：图标还没拉下来（首次安装 / 离线 / 被拦）时，
+    # 卡片左侧显示这个，不至于开天窗
+    marks: dict = {}
 
     for cat, fn in SOURCES:
         cfg = config.get(cat) or {}
+
+        labels[cat] = cfg.get("teamLabel") or cfg.get("label") or cat
+        marks[cat] = cfg.get("mark") or labels[cat][:2]
+        if cfg.get("logo"):
+            logos[cat] = cfg["logo"]                      # config 里写死了就用它
+        elif cat in STATIC_LOGOS:
+            logos[cat] = STATIC_LOGOS[cat]
+        elif cfg.get("sofascoreId"):
+            # 换了队伍，队徽地址跟着 sofascoreId 自动变，不用手工同步
+            logos[cat] = sofascore_logo(int(cfg["sofascoreId"]))
+
         if not cfg.get("enabled"):
             health[cat] = {"ok": True, "count": 0, "error": None, "enabled": False}
             print(f"[{cat}] 已禁用，跳过")
@@ -530,9 +605,15 @@ def main() -> int:
 
     all_events.sort(key=lambda e: (e["start"], e["cat"]))
 
+    # lolesports 那边队标是随赛程一起给的，抓取时顺手记下来（见 fetch_lol）
+    logos.update(_discovered_logos)
+
     out = {
         "generated_at": iso_z(now),
         "window_days": WINDOW_DAYS,
+        "labels": labels,
+        "logos": logos,
+        "marks": marks,
         "sources": health,
         "events": all_events,
     }

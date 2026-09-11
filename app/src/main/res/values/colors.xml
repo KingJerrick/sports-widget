@@ -57,5 +57,8 @@
 
     <!-- ── 通用 ───────────────────────────────────────────────── -->
     <color name="white">#FFFFFFFF</color>
+    <!-- ListView 的分隔线用它 + dividerHeight 来造卡片之间的空隙。
+         ListView 会丢掉 item 根布局的 margin，所以间距只能靠 divider 给。 -->
+    <color name="transparent">#00000000</color>
     <color name="ic_launcher_background">#FF334155</color>
 </resources>

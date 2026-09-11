@@ -5,16 +5,8 @@ import org.json.JSONObject
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** 一天在小组件里占的那一列：日期 + 选中的几条 + 还有几个项目没显示出来。 */
-data class DayPlan(
-    val date: LocalDate,
-    val chips: List<Event>,
-    /** >0 时最后一条位置显示「+N」。表示还有别的**项目**没挤进来（不是场次数）。 */
-    val hiddenCats: Int,
-)
-
 /**
- * 把后端那份 calendar.json 解析成模型，并算出小组件的七列怎么排。
+ * 把后端那份 calendar.json 解析成模型，并归并出小组件要显示的卡片。
  *
  * ── 这里有两件事和「照着 JSON 读出来」不一样 ────────────────────────────
  *
@@ -22,8 +14,9 @@ data class DayPlan(
  *    见 [CACHE_WINDOW_DAYS]。onUpdate 在主线程，SharedPreferences 首次访问是同步
  *    全量解析，塞几百 KB 进去会 ANR。
  *
- * 2. **每天显示哪几条是「按重要性选」而不是「按时间截」**
- *    见 [selectChips]。这是整个小组件最要紧的一条规则。
+ * 2. **一个比赛周末归并成一张卡，不是一场一张**
+ *    见 [buildCards]。F1 西班牙站的 FP1/FP2/排位/正赛是一张卡，
+ *    拆成四张的话列表会被撑得很长，还看不出它们本来是一回事。
  */
 object CalendarParser {
 
@@ -84,93 +77,89 @@ object CalendarParser {
             generatedAtMs = generatedAt,
             fetchedAtMs = nowMs,
             events = events.filter { it.startMs in lo until hi }.sortedBy { it.startMs },
+            labels = stringMap(root.optJSONObject("labels")),
+            logos = stringMap(root.optJSONObject("logos")),
+            marks = stringMap(root.optJSONObject("marks")),
             sources = sources,
             error = null,
         )
     }
 
-    /**
-     * 排出小组件的七列。
-     *
-     * 「今天」是按**设备时区**算的，所以 F1 欧洲站（UTC 13:00 = 北京 21:00）会落在
-     * 当地的那一天，而不是 UTC 的那一天。
-     */
-    fun buildWeek(
-        data: CalendarData,
-        today: LocalDate,
-        maxChips: Int,
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): List<DayPlan> {
-        // 先按当地日期分桶。窗口从昨天开始，所以今天已经打完的场次也在
-        val byDay = data.events.groupBy { dayOf(it.startMs, zone) }
+    /** 第二行最多列几个条目。再多就按重要性取舍 —— 列不下时省略号比取舍更糟。 */
+    private const val MAX_DETAIL_ITEMS = 6
 
-        return (0 until WIDGET_DAYS).map { offset ->
-            val date = today.plusDays(offset.toLong())
-            val dayEvents = byDay[date].orEmpty().sortedBy { it.startMs }
-            val (chips, hiddenCats) = selectChips(dayEvents, maxChips)
-            DayPlan(date = date, chips = chips, hiddenCats = hiddenCats)
+    /**
+     * 归并出小组件要显示的卡片。
+     *
+     * 一个 group 一张卡：F1 西班牙站的 FP1/FP2/排位/正赛是一张卡（标题「F1 · 西班牙站」，
+     * 第二行列各场次），而不是四张各说各话的卡。队伍类一场比赛就是一张卡。
+     *
+     * **已经全部打完的卡片直接丢掉** —— 信息流里没必要给过去的事留位置，
+     * 留着只会把真正要看的挤下去。
+     */
+    fun buildCards(data: CalendarData, nowMs: Long, limit: Int): List<Card> =
+        data.events
+            .groupBy { it.group }
+            .mapNotNull { (gid, evs) ->
+                val upcoming = evs.filter { it.startMs >= nowMs }
+                if (upcoming.isEmpty()) return@mapNotNull null
+
+                val head = evs.first()
+                val label = data.labels[head.cat.key] ?: head.cat.label
+                // config 里没写 teamLabel 时退回类别名，卡片标题至少不会空着
+                val name = head.groupName.ifBlank { label }
+                Card(
+                    id = gid,
+                    cat = head.cat,
+                    title = "$label · $name",
+                    name = name,
+                    nextStartMs = upcoming.minOf { it.startMs },
+                    detail = buildDetail(evs, nowMs),
+                    logoUrl = data.logos[head.cat.key],
+                    // 后端没给 mark 时退回类别名的前两个字符，至少不是空白
+                    mark = data.marks[head.cat.key] ?: head.cat.label.take(2),
+                )
+            }
+            .sortedBy { it.nextStartMs }
+            .take(limit)
+
+    /**
+     * 卡片第二行。
+     *
+     * 队伍类只有一场，直接写对手（「vs 巴列卡」）；
+     * 赛车项目把各场次按时间串起来（「FP1 · FP2 · 排位 · 正赛」）。
+     */
+    private fun buildDetail(events: List<Event>, nowMs: Long): String {
+        if (events.size == 1) {
+            val only = events.first()
+            return if (only.cat.isTeamSport) "vs ${only.short}" else only.short
         }
+
+        val sorted = events.sortedBy { it.startMs }
+        // 去重：MotoGP 一个周末有 Q1/Q2 两节排位，都叫「排位」，
+        // 不去重的话第二行会被两个一样的词占掉
+        val unique = sorted.distinctBy { it.short }
+
+        val picked = if (unique.size <= MAX_DETAIL_ITEMS) {
+            unique
+        } else {
+            // 放不下时保正赛/排位，练习赛让位 —— 和卡片取舍同一个道理
+            unique.sortedWith(compareByDescending<Event> { it.rank }.thenBy { it.startMs })
+                .take(MAX_DETAIL_ITEMS)
+                .sortedBy { it.startMs }
+        }
+        return picked.joinToString(" · ") { it.short }
     }
 
     /**
-     * 一天里选出要显示的那几条。
+     * 顶部七天迷你条：这七天里哪天有比赛。
      *
-     * ── 为什么不能按时间顺序取前 N 条 ────────────────────────────────────
-     * 实测一个周六能有 7 场（F1 两节 + MotoGP 四节 + 一场 LoL），而一列只放得下 3 条。
-     * 按时间截断的话，周日那天会显示成：
-     *
-     *     皇马 vs 巴列卡诺 | MotoGP 热身赛 | MotoGP 正赛     ← F1 正赛被挤掉了
-     *
-     * 整个周末最该看到的那一场没了，而且不报错、不崩，只是那一格空着。
-     *
-     * ── 规则 ──────────────────────────────────────────────────────────
-     * 第一轮：**每个项目先各占一条**（取该项目里最重要的，同分取最早的）。
-     *         这样「今天有哪几个项目」不会被某一类的练习赛淹没。
-     * 第二轮：还有空位就用剩下的按重要性补满（练习赛在空档的日子就能露出来）。
-     * 项目数本身就超过槽位时，留一条显示「+N」告诉用户还有别的项目。
-     *
-     * 返回值里的列表按时间排好序 —— 选是按重要性，显示还是按时间，读起来才像日程。
+     * 「哪天有比赛」和「比什么赛」是两个不同的问题 —— 卡片流回答后一个，
+     * 这条回答前一个。没有它的话，一眼看过去完全不知道哪天是空的。
      */
-    fun selectChips(events: List<Event>, maxChips: Int): Pair<List<Event>, Int> {
-        if (events.isEmpty()) return emptyList<Event>() to 0
-        if (events.size <= maxChips) return events.sortedBy { it.startMs } to 0
-
-        // 带着下标走，避免 id 重复时把两场不同的比赛当成同一场
-        val indexed = events.withIndex().toList()
-
-        val reps = indexed
-            .groupBy { it.value.cat }
-            .map { (_, list) ->
-                list.sortedWith(
-                    compareByDescending<IndexedValue<Event>> { it.value.rank }
-                        .thenBy { it.value.startMs }
-                ).first()
-            }
-            .sortedBy { it.value.startMs }
-
-        val chosenIdx = mutableListOf<Int>()
-        var hiddenCats = 0
-
-        if (reps.size <= maxChips) {
-            chosenIdx += reps.map { it.index }
-            val rest = indexed
-                .filter { it.index !in chosenIdx }
-                .sortedWith(
-                    compareByDescending<IndexedValue<Event>> { it.value.rank }
-                        .thenBy { it.value.startMs }
-                )
-            var i = 0
-            while (chosenIdx.size < maxChips && i < rest.size) {
-                chosenIdx += rest[i].index
-                i++
-            }
-        } else {
-            // 项目数超过槽位：留最后一条给「+N」
-            chosenIdx += reps.take(maxChips - 1).map { it.index }
-            hiddenCats = reps.size - (maxChips - 1)
-        }
-
-        return events.filterIndexed { i, _ -> i in chosenIdx }.sortedBy { it.startMs } to hiddenCats
+    fun buildDayStrip(data: CalendarData, today: LocalDate, zone: ZoneId): List<Boolean> {
+        val hasEvents = data.events.map { dayOf(it.startMs, zone) }.toHashSet()
+        return (0 until WIDGET_DAYS).map { today.plusDays(it.toLong()) in hasEvents }
     }
 
     /**
