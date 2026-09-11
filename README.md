@@ -216,8 +216,9 @@ gradle wrapper --gradle-version 8.7 && ./gradlew assembleDebug   # 方式 2：�
 ```
 sports-widget/
 ├── .github/workflows/
-│   ├── build-apk.yml            # 打包 APK
+│   ├── build-apk.yml            # 打包 APK（失败时把错误写进 build-error.md）
 │   └── update-calendar.yml      # 每 6 小时抓赛程并提交
+├── build-error.md               # 只在构建失败时出现，记录当时的编译错误
 ├── tools/fetch_calendar.py      # 聚合脚本（只用标准库 + curl）
 ├── data/
 │   ├── config.json              # 追哪些队伍 —— 改这个换队，不用碰 App
