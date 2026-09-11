@@ -14,6 +14,9 @@ on:
     paths-ignore:
       - 'data/**'
       - 'app/src/main/assets/**'
+      # 构建失败时 workflow 自己会提交这个文件，不能让它再触发一轮构建
+      # （提交信息里也有 [skip ci]，两道保险）
+      - 'build-error.md'
   workflow_dispatch:
 
 jobs:
@@ -33,12 +36,51 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      # continue-on-error 是故意的：构建失败也要往下走，把错误记录下来
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+
+      # ── 构建失败时，把错误写进仓库 ─────────────────────────────────────
+      # 这个工程的目标机器上**没有 JDK / Android SDK**，编译只能在 Actions 上跑。
+      # 而 Actions 的日志页要登录、日志接口又要管理员权限才能读，
+      # 结果就是「构建失败了但看不到为什么」。
+      # 所以失败时把关键错误行落进 build-error.md —— 这样任何地方都能用
+      # raw 链接读到，不用登录。
+      #
+      # 提交信息里的 [skip ci] 不能去掉，否则这次提交又会触发一轮构建，
+      # 失败的话再写一次文件，就成了死循环。
+      - name: Report build failure
+        if: steps.build.outcome == 'failure'
+        run: |
+          {
+            echo "# 最近一次构建失败"
+            echo
+            echo "时间：$(date -u '+%Y-%m-%d %H:%M UTC')  "
+            echo "提交：\`$GITHUB_SHA\`"
+            echo
+            echo '```'
+            grep -E "^e: |error:|FAILURE:|What went wrong|Execution failed|Caused by|> Task .* FAILED|\.kt:[0-9]+|\.xml:[0-9]+" build.log | head -80
+            echo '```'
+          } > build-error.md
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-error.md
+          git commit -m "ci: 记录构建失败原因 [skip ci]" || echo "没有变化"
+          git push || echo "推送失败，忽略"
 
       - name: Upload APK
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: sports-widget-debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # 把上一步的失败状态带出来，让这次 job 仍然是红的
+      - name: Fail the job
+        if: steps.build.outcome == 'failure'
+        run: exit 1

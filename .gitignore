@@ -9,3 +9,5 @@ captures/
 .cxx
 *.apk
 *.keystore
+# CI 编译时的完整输出（只有 build-error.md 那几行关键的会进仓库）
+build.log
