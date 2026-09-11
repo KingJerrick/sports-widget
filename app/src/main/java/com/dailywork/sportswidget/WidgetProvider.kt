@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
@@ -244,7 +245,6 @@ object WidgetRenderer {
                 views.setTextViewText(id, "+${plan.hiddenCats}")
                 views.setInt(id, "setBackgroundResource", R.drawable.bg_pill_more)
                 views.setTextColor(id, ContextCompat.getColor(context, R.color.on_pill))
-                views.setFloat(id, "setAlpha", 1f)
                 slot++
             }
 
@@ -269,8 +269,23 @@ object WidgetRenderer {
         views.setTextColor(id, ContextCompat.getColor(context, R.color.on_pill))
 
         // 今天已经打完的场次压暗，一眼区分「还有的看」和「已经过去了」。
-        // setAlpha 是 @RemotableViewMethod，可以用。
-        views.setFloat(id, "setAlpha", if (past) 0.45f else 1f)
+        //
+        // ⚠️ 必须判版本：`View.setAlpha(float)` 直到 **API 31** 才被加上
+        // `@RemotableViewMethod`。在 Android 8~11 上调它会抛
+        //     RemoteViews$ActionException: view: android.widget.TextView
+        //         can't use method with RemoteViews: setAlpha(float)
+        // 而 ActionException 会让**这一次 updateAppWidget 整体失败** ——
+        // 桌面显示「载入小组件时出现问题」或停在旧内容。
+        //
+        // 症状特别阴：空态时没有 chip、走不到这里，一切正常；
+        // **第一次成功拉到数据之后小组件才坏**，而且不崩不报错，只看得到桌面空白。
+        //
+        // 31 以下的代价是「已结束」不再压暗（App 里仍会标出来）。
+        // 不要试图用 setInt("setAlpha") 顶替 —— 那是 ImageView.setAlpha(int)，
+        // 在 TextView 上找不到这个方法，照样抛。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            views.setFloat(id, "setAlpha", if (past) 0.45f else 1f)
+        }
     }
 
     /** 今天 / 明天 / 周X */

@@ -27,10 +27,14 @@ class RefreshWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = try {
-        CalendarRefresher.refresh(applicationContext)
-        Result.success()
+        // ⚠️ 必须看返回值。refresh() 把网络异常都自己吞了（它要做三级降级），
+        // 只靠返回值告诉外面「这次到底刷成没有」——无视它的话，网络全挂也会被
+        // 当成 success 上报，WorkManager 不会按退避策略重试，
+        // 只能干等下一个周期（默认 6 小时）。Doze + 国内 CDN 不稳的场景下，
+        // 这会明显放大「小组件一整天不更新」的概率。
+        if (CalendarRefresher.refresh(applicationContext)) Result.success() else Result.retry()
     } catch (e: Exception) {
-        // 交给 WorkManager 按退避策略重试
+        // 这里只有 Prefs 读写 / 重画之类的意外异常
         Result.retry()
     }
 }
