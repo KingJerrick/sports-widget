@@ -78,6 +78,19 @@ jobs:
           git commit -m "ci: 记录构建失败原因 [skip ci]" || echo "没有变化"
           git push || echo "推送失败，忽略"
 
+      # 构建好了就把上次留下的错误报告删掉。
+      # 不删的话那个文件会一直挂在仓库里，下次看还以为构建是坏的。
+      - name: Clear stale error report
+        if: steps.build.outcome == 'success'
+        run: |
+          if [ -f build-error.md ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm -q build-error.md
+            git commit -m "ci: 构建已恢复，清掉错误报告 [skip ci]"
+            git push || echo "推送失败，忽略"
+          fi
+
       - name: Upload APK
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
