@@ -1,0 +1,856 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4×2 小组件布局（标称 250×110dp）：顶栏 + 7 列，每列「星期 / 日期 / 最多 3 条赛事」。
+
+  ══ 尺寸账（改字号、间距、内边距之前先看这段）══════════════════════════
+
+    固定部分（不随小组件高度变化）
+      根 padding 上下 8*2                                     = 16
+      顶栏（是 max(子 view) 而不是写死值，见下）               = 18   ← 刷新图标 18dp 撑出来的
+      顶栏 → 星期行间距                                        =  4
+      星期行 8dp（含 includeFontPadding=false，行高约 9.4）     ≈ 10
+      日期行 11dp monospace（行高约 14）                        ≈ 14
+      日期行 → chip 区间距                                     =  4
+      ─────────────────────────────────────────────────────────────
+      固定部分合计                                             = 66
+
+    chip 区 layout_weight=1，吸收剩余高度：110 - 66 = 44dp
+      每条 chip 13dp，两条之间 2dp → 3 条 = 13*3 + 2*2 = 43dp ✅ 放得下
+      只有 1dp 余量，所以下面这些一定要守住：
+        · 每个 TextView 都写 includeFontPadding="false"（漏一个就 +2~4dp）
+        · 每个 TextView 都写 minHeight="0dp" padding="0dp"
+          （小组件是在**启动器的主题**里 inflate 的，会继承启动器的 textViewStyle，
+            MIUI 和 AOSP 的默认 padding/minHeight 不一样）
+        · 字号一律用 dp 不用 sp（见下）
+
+    宽度（250dp）
+      250 - 根 padding 16 - 6 处栏间距 2*6=12 = 222 → 每列 31.7dp
+      chip 左右内边距 1.5*2 = 3 → chip 内可用宽 28.7dp
+      7dp 字号下：汉字约 7dp、拉丁约 4.2dp → 能放 3 个汉字或 6 个拉丁字符
+      这就是后端把 short 截断到「≤3 汉字 / ≤6 拉丁」的由来（见 tools/fetch_calendar.py）
+
+  ══ 为什么字号写 dp 不写 sp ═════════════════════════════════════════
+
+  sp 是在**启动器的 Configuration** 里解析的（布局由启动器 inflate），所以系统的
+  「字体大小」设置百分之百会影响小组件。Android 14 又把非线性字体缩放的上限拉到
+  200%，且小于 20sp 的文字按满额放大 —— 7sp 在 fontScale 1.5 下会变成 10.5sp。
+
+  而小组件**不会滚动、也不会自己长高，溢出就是被裁掉**。所以这里的 textSize 全部用
+  COMPLEX_UNIT_DIP（乘 density，不乘 scaledDensity），天然免疫字体缩放。
+  代价是不再跟随用户的无障碍字号设置 —— 对一个固定 110dp 高的小组件，这是必要取舍。
+
+  ══ RemoteViews 三条红线（踩过的坑，别改）══════════════════════════
+
+    1. 只用 LinearLayout / FrameLayout / TextView / ImageView / ProgressBar 这些控件，
+       裸 View 不用（RemoteViews 只认带 @RemoteView 注解的类）。所以「色块」都是用
+       TextView 加背景实现的，不是 View。
+    2. 一律不写 ?attr/ —— 布局是在启动器的 Context 里 inflate 的，主题属性会按启动器的
+       主题解析，取不到时轻则不显示、重则 inflate 失败。
+    3. 21 个 chip 全部**写死在布局里**，不用 RemoteViews.addView 动态挂。原因：addView
+       会让每次更新产生 21 次嵌套 inflate，全部发生在启动器主线程（MIUI/EMUI 的启动器
+       本来就重），而且嵌套根布局的 layout_margin 在部分启动器上会被丢掉。
+       写死之后渲染只用 setTextViewText / setViewVisibility / setInt 这些一等公民方法。
+
+  ══ 其它 ═══════════════════════════════════════════════════════════
+    · 日期只显示日号（「11」而不是「9/11」）：5 个字符的 monospace 在 11dp 下要 33dp，
+      超过 31.7dp 的列宽，必被省略号截掉。
+    · days 容器加了 layoutDirection="ltr"：否则 RTL 语言下 7 列会从右往左排，日期倒序。
+    · 21 个 chip 的 id 是 chip_<列>_<序>，WidgetRenderer 里用 CHIP_IDS 二维数组索引。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_widget"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- ══ 顶栏 ══════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- 品牌竖条。用 TextView 当色块，避免 RemoteViews 里出现裸 View -->
+        <TextView
+            android:layout_width="3dp"
+            android:layout_height="11dp"
+            android:background="@drawable/bg_mark"
+            android:minHeight="0dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.08"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:text="@string/widget_title"
+            android:textColor="@color/accent_text"
+            android:textSize="10dp"
+            android:textStyle="bold" />
+
+        <!--
+          五个图例色点，顺序固定 F1 / MotoGP / CS2 / 足球 / IG，和 App 里的图例表一致。
+          颜色用 XML 的 backgroundTint 给（静态，inflate 时按深浅色模式解析），
+          因为色点不需要在运行时换色 —— 能静态就静态，见 bg_dot.xml 的说明。
+        -->
+        <TextView
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/cat_f1"
+            android:minHeight="0dp" />
+
+        <TextView
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/cat_mgp"
+            android:minHeight="0dp" />
+
+        <TextView
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/cat_cs2"
+            android:minHeight="0dp" />
+
+        <TextView
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/cat_football"
+            android:minHeight="0dp" />
+
+        <TextView
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginStart="2dp"
+            android:background="@drawable/bg_dot"
+            android:backgroundTint="@color/cat_lol"
+            android:minHeight="0dp" />
+
+        <!--
+          状态行。平时显示数据生成时间（不是手机拉取时间，见 WidgetRenderer），
+          超过 24 小时未更新会转琥珀色。
+        -->
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:textColor="@color/text_muted"
+            android:textSize="9dp" />
+
+        <!--
+          刷新图标只有 18dp，低于 48dp 的最小触控区。所以点击事件挂在**整条顶栏**上，
+          这个图标只是视觉提示，不单独接事件 —— 否则边缘点击会被启动器的缩放手柄吃掉。
+        -->
+        <ImageView
+            android:id="@+id/btn_refresh"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/action_refresh"
+            android:padding="3dp"
+            android:src="@drawable/ic_refresh" />
+    </LinearLayout>
+
+    <!-- ══ 七天 ══════════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/days"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="4dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
+        android:layoutDirection="ltr"
+        android:orientation="horizontal">
+
+        <!-- ── 第 0 列：今天 ─────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_0"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_0_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_0_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_0_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── 第 1 列 ───────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_1"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_1_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_1_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_1_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── 第 2 列 ───────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_2"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_2_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_2_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_2_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── 第 3 列 ───────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_3"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_3_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_3_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_3_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── 第 4 列 ───────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_4"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_4_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_4_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_4_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── 第 5 列 ───────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_5"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_5_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_5_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_5_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ── 第 6 列 ───────────────────────────────────────────── -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_wday_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="8dp" />
+
+            <TextView
+                android:id="@+id/tv_date_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11dp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/chips_6"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="4dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/chip_6_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_6_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/chip_6_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="13dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_pill_f1"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:paddingStart="1.5dp"
+                    android:paddingEnd="1.5dp"
+                    android:textColor="@color/on_pill"
+                    android:textSize="7dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

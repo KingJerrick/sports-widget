@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  深色模式配色，名字与 values/colors.xml 一一对应（见那边的规则说明）。
+
+  底板是「带蓝味的近黑」而不是纯黑：纯黑在 OLED 上和桌面色差太大，看起来像挖了个洞；
+  带一点蓝反而更像仪表盘的暗场。
+
+  ── 类别色在深色下为什么要变亮 ────────────────────────────────────────
+  浅色模式那套深色块（#C8102E 之类）放在近黑底上会发闷，像蒙了一层灰。
+  所以整体提亮，并把 chip 文字从白字换成近黑字 —— 对比度是按这个组合重新算的，
+  每个都过 8:1（7dp 小字要求 4.5:1，留了充足余量）。
+-->
+<resources>
+
+    <!-- ── 底板 ───────────────────────────────────────────────── -->
+    <color name="bg_widget">#FF070B18</color>
+    <color name="bg_widget_top">#FF0B122A</color>
+    <color name="bg_widget_bottom">#FF05080F</color>
+    <color name="bg_card">#FF111B38</color>
+    <color name="bg_card_alt">#FF1C2A4E</color>
+    <color name="hairline">#FF263C66</color>
+    <color name="nav_bar">#FF070B18</color>
+
+    <!-- ── 文字三级 ───────────────────────────────────────────── -->
+    <color name="text_primary">#FFE8EEFF</color>
+    <color name="text_secondary">#FF93A6D0</color>
+    <color name="text_muted">#FF7286AE</color>
+
+    <!-- ── 身份色：深色下提亮，否则在近黑底上看不见 ────────────── -->
+    <color name="accent">#FF94A9CC</color>
+    <color name="accent_text">#FFCBD5E1</color>
+    <color name="accent_amber">#FFF0B23C</color>
+
+    <!-- ── 五个类别色（chip 填充色）+ 近黑字的对比度 ───────────── -->
+    <!-- F1 · 红 8.1:1 -->
+    <color name="cat_f1">#FFFF8A8A</color>
+    <!-- MotoGP · 橙 9.4:1 -->
+    <color name="cat_mgp">#FFFFB067</color>
+    <!-- CS2 · 紫 8.2:1 -->
+    <color name="cat_cs2">#FFB49CFB</color>
+    <!-- 足球 · 草皮绿 10.1:1 -->
+    <color name="cat_football">#FF4ADE9B</color>
+    <!-- LoL · 蓝 8.5:1 -->
+    <color name="cat_lol">#FF7CB8FF</color>
+
+    <!-- chip 文字：深色模式下五个色块都是亮的，统一用近黑字 -->
+    <color name="on_pill">#FF10151F</color>
+    <color name="cat_more">#FF94A3B8</color>
+
+    <!-- white 与 ic_launcher_background 深色下不需要覆盖，故不重复定义 -->
+</resources>

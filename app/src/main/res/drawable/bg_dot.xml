@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  顶栏图例色点。5 个点共用这一份，各自的颜色由布局里的 android:backgroundTint 给。
+
+  ── 为什么色点可以共用一份、chip 就不行 ──────────────────────────────
+  因为色点是**静态的**：颜色写在 XML 属性里，启动器 inflate 时按当前深浅色模式解析，
+  一次到位。
+
+  chip 不行 —— 同一列里第 1 条可能是 F1、第 2 条可能是 IG，颜色要在渲染时按数据决定，
+  必须在代码里换。而 RemoteViews 的运行时着色只有 API 31+ 才可靠
+  （setBackgroundTintList / setColorStateList 都是），所以 chip 只能老老实实
+  做 5 份预置 drawable 来回切 setBackgroundResource。详见 WidgetRenderer 的注释。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/white" />
+</shape>

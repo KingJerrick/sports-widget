@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App 里重复出现的小样式。这些**只在 App 内使用** —— 小组件布局里不能引 style，
+  因为那份布局是在启动器的 Context 里 inflate 的。见 widget_sports.xml 的红线 3。
+-->
+<resources>
+    <!-- 段落小标题：① ② ③ ④ -->
+    <style name="SectionTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">22dp</item>
+        <item name="android:textColor">@color/accent_text</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

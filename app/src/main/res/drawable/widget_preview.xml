@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  小组件在选择器里的预览图，给 **API 31 以下**用（31+ 走 widget_info.xml 的 previewLayout）。
+
+  为什么不用 previewLayout 就够：previewLayout / description / targetCell* 全是 API 31 才生效的属性，
+  31 以下的启动器只认 previewImage，缺了它选择器里就是一个默认的安卓图标 —— 没人会拖。
+
+  这是一张静态矢量图，按 250×110 的实际比例画（viewport 就取这个值），
+  内容照着小组件的样子摆：顶栏 + 五个图例色点 + 七天格子 + 若干彩色赛事条。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="250dp"
+    android:height="110dp"
+    android:viewportWidth="250"
+    android:viewportHeight="110">
+
+    <!-- 底板 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M0,0 h250 v110 h-250 z" />
+
+    <!-- 顶栏：竖条 + 标题 + 五个图例色点 + 刷新 -->
+    <path
+        android:fillColor="#FF334155"
+        android:pathData="M9,6 h3 v11 h-3 z" />
+    <path
+        android:fillColor="#FF94A3B8"
+        android:pathData="M16,8 h34 v7 h-34 z" />
+    <path
+        android:fillColor="#FFC8102E"
+        android:pathData="M58,9 h5 v5 h-5 z" />
+    <path
+        android:fillColor="#FFC2410C"
+        android:pathData="M65,9 h5 v5 h-5 z" />
+    <path
+        android:fillColor="#FF6D28D9"
+        android:pathData="M72,9 h5 v5 h-5 z" />
+    <path
+        android:fillColor="#FF047857"
+        android:pathData="M79,9 h5 v5 h-5 z" />
+    <path
+        android:fillColor="#FF1D4ED8"
+        android:pathData="M86,9 h5 v5 h-5 z" />
+    <path
+        android:fillColor="#FF94A3B8"
+        android:pathData="M180,8 h40 v6 h-40 z" />
+    <path
+        android:fillColor="#FF334155"
+        android:pathData="M228,7 h7 v7 h-7 z" />
+
+    <!-- 分隔线 -->
+    <path
+        android:fillColor="#FFD8DEE9"
+        android:pathData="M8,25 h234 v1 h-234 z" />
+
+    <!-- 第 1 列：今天 · F1 + IG -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M10,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M15,39 h8 v9 h-8 z" />
+    <path android:fillColor="#FFC8102E" android:pathData="M9.5,55 h28.7 v12 h-28.7 z" />
+    <path android:fillColor="#FF1D4ED8" android:pathData="M9.5,69 h28.7 v12 h-28.7 z" />
+
+    <!-- 第 2 列：周六 · CS2 -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M43.7,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M48.7,39 h8 v9 h-8 z" />
+    <path android:fillColor="#FF6D28D9" android:pathData="M43.2,55 h28.7 v12 h-28.7 z" />
+
+    <!-- 第 3 列：周日 · MotoGP -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M77.4,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M82.4,39 h8 v9 h-8 z" />
+    <path android:fillColor="#FFC2410C" android:pathData="M76.9,55 h28.7 v12 h-28.7 z" />
+
+    <!-- 第 4 列：周一 · 空 -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M111.1,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M116.1,39 h8 v9 h-8 z" />
+
+    <!-- 第 5 列：周二 · 皇马 -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M144.8,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M149.8,39 h8 v9 h-8 z" />
+    <path android:fillColor="#FF047857" android:pathData="M144.3,55 h28.7 v12 h-28.7 z" />
+
+    <!-- 第 6 列：周三 · 空 -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M178.5,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M183.5,39 h8 v9 h-8 z" />
+
+    <!-- 第 7 列：周四 · F1 三节 -->
+    <path android:fillColor="#FF94A3B8" android:pathData="M212.2,29 h16 v6 h-16 z" />
+    <path android:fillColor="#FF334155" android:pathData="M217.2,39 h8 v9 h-8 z" />
+    <path android:fillColor="#FFC8102E" android:pathData="M211.7,55 h28.7 v12 h-28.7 z" />
+    <path android:fillColor="#FFC8102E" android:pathData="M211.7,69 h28.7 v12 h-28.7 z" />
+    <path android:fillColor="#FFC8102E" android:pathData="M211.7,83 h28.7 v12 h-28.7 z" />
+</vector>

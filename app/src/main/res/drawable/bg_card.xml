@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App 赛程页里的卡片。描边承担结构，所以不要再往卡片里加阴影或第二层背景。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/bg_card" />
+    <corners android:radius="8dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/hairline" />
+</shape>

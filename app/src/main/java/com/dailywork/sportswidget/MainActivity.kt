@@ -1,0 +1,369 @@
+package com.dailywork.sportswidget
+
+import android.graphics.Typeface
+import android.os.Bundle
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.Spinner
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+/**
+ * 赛程页 / 设置页。
+ *
+ * 四段：① 赛程列表 ② 颜色图例 ③ 数据源状态 ④ 设置 + 自检。
+ *
+ * ── 赛程列表为什么显示全部、而小组件只显示 3 条 ──────────────────────────
+ * 小组件每列 28.7dp 宽、放 3 条，是物理限制；这里是可滚动的，没理由再砍。
+ * 小组件的取舍规则（哪个项目优先、什么时候出「+N」）在
+ * [CalendarParser.selectChips] 里，图例下面那段说明也写了同一件事。
+ */
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var etEndpoint: EditText
+    private lateinit var spInterval: Spinner
+    private lateinit var tvStatusLine: TextView
+    private lateinit var tvResult: TextView
+    private lateinit var boxSchedule: LinearLayout
+    private lateinit var boxLegend: LinearLayout
+    private lateinit var boxSources: LinearLayout
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** 刷新间隔选项（分钟）。默认 6 小时与后端抓取节奏一致，见 Prefs 的说明。 */
+    private val intervalOptions = listOf(60, 180, 360, 720, 1440)
+
+    private val timeFmt = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+    private val dateFmt = DateTimeFormatter.ofPattern("M/d", Locale.US)
+    private val stampFmt = DateTimeFormatter.ofPattern("M/d HH:mm", Locale.US)
+    private val wdayNames = arrayOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        etEndpoint = findViewById(R.id.et_endpoint)
+        spInterval = findViewById(R.id.sp_interval)
+        tvStatusLine = findViewById(R.id.tv_status_line)
+        tvResult = findViewById(R.id.tv_result)
+        boxSchedule = findViewById(R.id.box_schedule)
+        boxLegend = findViewById(R.id.box_legend)
+        boxSources = findViewById(R.id.box_sources)
+
+        spInterval.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            intervalOptions.map { minutes ->
+                if (minutes < 60) "$minutes 分钟" else "${minutes / 60} 小时"
+            },
+        ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+        findViewById<Button>(R.id.btn_save).setOnClickListener { saveAndRefresh() }
+        findViewById<Button>(R.id.btn_test).setOnClickListener { runDiagnostics() }
+
+        loadIntoForm()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        renderAll()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
+    // ── 表单 ──────────────────────────────────────────────────────────
+
+    private fun loadIntoForm() {
+        etEndpoint.setText(Prefs.getEndpoint(this))
+        val minutes = Prefs.getIntervalMinutes(this)
+        // 找不到就把最接近的选项选上（用户手改过 SharedPreferences 时也不会崩）
+        spInterval.setSelection(intervalOptions.indexOf(minutes).takeIf { it >= 0 } ?: 2)
+    }
+
+    private fun saveAndRefresh() {
+        Prefs.setEndpoint(this, etEndpoint.text.toString())
+        Prefs.setIntervalMinutes(this, intervalOptions[spInterval.selectedItemPosition])
+        RefreshScheduler.schedule(this, immediate = true)
+        Toast.makeText(this, getString(R.string.toast_saved), Toast.LENGTH_SHORT).show()
+        tvStatusLine.postDelayed({ renderAll() }, 1500)
+    }
+
+    // ── 渲染三块 ──────────────────────────────────────────────────────
+
+    private fun renderAll() {
+        val data = Prefs.loadData(this)
+        renderStatusLine(data)
+        renderSchedule(data)
+        renderLegend()
+        renderSources(data)
+    }
+
+    private fun renderStatusLine(data: CalendarData) {
+        val text = when {
+            data.error != null -> "⚠ ${data.error}"
+            data.generatedAtMs <= 0L -> getString(R.string.status_never)
+            else -> {
+                val stamp = Instant.ofEpochMilli(data.generatedAtMs)
+                    .atZone(ZoneId.systemDefault()).format(stampFmt)
+                val fetched = Instant.ofEpochMilli(data.fetchedAtMs)
+                    .atZone(ZoneId.systemDefault()).format(stampFmt)
+                // 两个时间都给出来：数据是后端什么时候生成的、手机什么时候拉到的。
+                // 后端的定时抓取挂掉时，只有前一个会停住，靠它才能发现问题。
+                "数据生成于 $stamp ｜ 本机拉到于 $fetched"
+            }
+        }
+        tvStatusLine.text = text
+    }
+
+    private fun renderSchedule(data: CalendarData) {
+        boxSchedule.removeAllViews()
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val now = System.currentTimeMillis()
+
+        val byDay = data.events.groupBy { dayOf(it.startMs, zone) }
+
+        var shown = 0
+        for (offset in 0 until CalendarParser.WIDGET_DAYS) {
+            val date = today.plusDays(offset.toLong())
+            val events = byDay[date].orEmpty().sortedBy { it.startMs }
+            if (events.isEmpty()) continue
+
+            boxSchedule.addView(sectionLabel(dayLabel(today, date)))
+
+            events.forEach { e ->
+                boxSchedule.addView(eventRow(e, zone, e.isPast(now)))
+                shown++
+            }
+        }
+
+        if (shown == 0) {
+            boxSchedule.addView(note(getString(R.string.empty_schedule)))
+        }
+    }
+
+    private fun renderLegend() {
+        boxLegend.removeAllViews()
+        Cat.entries.forEach { cat ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = lp(matchWidth = true).apply { topMargin = dp(6f) }
+            }
+            row.addView(dot(cat))
+            row.addView(
+                TextView(this).apply {
+                    text = "${cat.label}   →   小组件里显示 ${sampleShortFor(cat)}"
+                    textSize = 12f
+                    setTextColor(color(R.color.text_secondary))
+                    layoutParams = lp().apply { marginStart = dp(8f) }
+                }
+            )
+            boxLegend.addView(row)
+        }
+    }
+
+    private fun renderSources(data: CalendarData) {
+        boxSources.removeAllViews()
+        if (data.sources.isEmpty()) {
+            boxSources.addView(note("还没有数据。点下面的「测试连接」看能不能拉到。"))
+            return
+        }
+        data.sources.forEach { s ->
+            val ok = s.ok
+            val state = when {
+                !ok -> getString(R.string.source_failed)
+                s.count == 0 -> "正常（暂无赛事）"
+                else -> getString(R.string.source_ok)
+            }
+            val head = "${s.cat.label}  ·  $state" +
+                    if (s.count > 0) "  ·  ${getString(R.string.source_count, s.count)}" else ""
+
+            boxSources.addView(
+                TextView(this).apply {
+                    text = if (ok) head else "$head\n${s.error.orEmpty()}"
+                    textSize = 12f
+                    setTextColor(color(if (ok) R.color.text_secondary else R.color.accent_amber))
+                    layoutParams = lp(matchWidth = true).apply { topMargin = dp(6f) }
+                }
+            )
+        }
+    }
+
+    // ── 自检 ──────────────────────────────────────────────────────────
+
+    /**
+     * 「测试连接」：真的拉一次，把结果的关键信息打出来。
+     *
+     * 刻意打**结构清单**而不是原始 JSON —— 整份响应几万字，这里放不下，
+     * 截前 2000 字又常常正好把关键段落切掉。清单只列路径不列数据，短得多，结构一点不丢。
+     * （这个思路是从 deepseek-widget 的 UsageParser 搬过来的。）
+     */
+    private fun runDiagnostics() {
+        tvResult.text = "测试中…"
+        scope.launch {
+            val report = withContext(Dispatchers.IO) { buildDiagnostics() }
+            tvResult.text = report
+        }
+    }
+
+    private fun buildDiagnostics(): String = buildString {
+        val endpoints = CalendarClient.endpoints(this@MainActivity)
+        appendLine("尝试的地址（从上往下，第一个成功就停）：")
+        endpoints.forEach { appendLine("  · $it") }
+        appendLine()
+
+        val raw = try {
+            CalendarClient.fetchRaw(this@MainActivity)
+        } catch (e: Exception) {
+            appendLine("❌ 全部失败：")
+            appendLine(e.message)
+            appendLine()
+            appendLine("排查顺序：")
+            appendLine("1. 仓库是不是公开的（私有仓库 CDN 取不到）")
+            appendLine("2. data/calendar.json 有没有生成（看 Actions 里 update-calendar 那次运行）")
+            appendLine("3. 国内直连 jsdelivr 不稳，可以挂代理，或在上面的输入框里填自己的地址")
+            return@buildString
+        }
+
+        appendLine("✅ 拉到 ${raw.length} 字节")
+        appendLine()
+
+        val now = System.currentTimeMillis()
+        val parsed = CalendarParser.parse(raw, now, ZoneId.systemDefault())
+        if (parsed == null) {
+            appendLine("⚠ 内容不是我们认得的形状，下面是原始结构：")
+            appendLine()
+            appendLine(CalendarParser.describeStructure(raw))
+            return@buildString
+        }
+
+        appendLine("共 ${parsed.events.size} 场，落在本地缓存窗口内")
+        parsed.sources.forEach { s ->
+            appendLine("  ${s.cat.label}: ${if (s.ok) "正常" else "失败"} ${s.count} 场 ${s.error.orEmpty()}")
+        }
+        appendLine()
+        appendLine("未来七天：")
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val week = CalendarParser.buildWeek(parsed, today, 3, zone)
+        week.forEach { plan ->
+            val chips = plan.chips.joinToString(" | ") { it.short } +
+                    if (plan.hiddenCats > 0) " | +${plan.hiddenCats}" else ""
+            appendLine("  ${dateFmt.format(plan.date)}  ${chips.ifBlank { "—" }}")
+        }
+        appendLine()
+        appendLine("（上面就是小组件会显示的内容，按 3 条算）")
+        appendLine()
+        appendLine("返回结构：")
+        appendLine(CalendarParser.describeStructure(raw, limit = 25))
+    }
+
+    // ── 小组件用不到的绘制小工具 ──────────────────────────────────────
+
+    private fun eventRow(e: Event, zone: ZoneId, past: Boolean): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_card)
+            setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
+            layoutParams = lp(matchWidth = true).apply { topMargin = dp(6f) }
+            alpha = if (past) 0.5f else 1f
+        }
+
+        // 左侧色条：3dp 宽，颜色就是小组件里那个类别色
+        row.addView(
+            View(this).apply {
+                setBackgroundColor(color(e.cat.dotColorRes))
+                layoutParams = LinearLayout.LayoutParams(dp(3f), ViewGroup.LayoutParams.MATCH_PARENT)
+            }
+        )
+
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = dp(10f) }
+        }
+        col.addView(
+            TextView(this).apply {
+                text = e.title
+                textSize = 13f
+                setTextColor(color(R.color.text_primary))
+            }
+        )
+        val when_ = Instant.ofEpochMilli(e.startMs).atZone(zone).format(timeFmt)
+        col.addView(
+            TextView(this).apply {
+                text = "$when_  ·  ${e.cat.label}" + if (past) "  ·  已结束" else ""
+                textSize = 10f
+                setTextColor(color(R.color.text_muted))
+            }
+        )
+        row.addView(col)
+        return row
+    }
+
+    private fun dot(cat: Cat): TextView = TextView(this).apply {
+        text = "●"
+        textSize = 14f
+        setTextColor(color(cat.dotColorRes))
+        gravity = Gravity.CENTER
+    }
+
+    private fun sectionLabel(text: String): TextView = TextView(this).apply {
+        this.text = text
+        textSize = 12f
+        setTextColor(color(R.color.text_secondary))
+        setTypeface(typeface, Typeface.BOLD)
+        layoutParams = lp(matchWidth = true).apply { topMargin = dp(12f) }
+    }
+
+    private fun note(text: String): TextView = TextView(this).apply {
+        this.text = text
+        textSize = 12f
+        setTextColor(color(R.color.text_muted))
+        layoutParams = lp(matchWidth = true).apply { topMargin = dp(6f) }
+    }
+
+    private fun dayLabel(today: LocalDate, date: LocalDate): String = when (date) {
+        today -> "今天  ${dateFmt.format(date)}  ${wdayNames[date.dayOfWeek.value - 1]}"
+        today.plusDays(1) -> "明天  ${dateFmt.format(date)}  ${wdayNames[date.dayOfWeek.value - 1]}"
+        else -> "${wdayNames[date.dayOfWeek.value - 1]}  ${dateFmt.format(date)}"
+    }
+
+    /** 图例里给个例子，说明这个类别在小组件里长什么样。 */
+    private fun sampleShortFor(cat: Cat): String = when (cat) {
+        Cat.F1, Cat.MOTOGP -> "正赛 / 排位 / FP1"
+        Cat.CS2, Cat.FOOTBALL, Cat.LOL -> "对手短名，如 NaVi / 巴萨 / BLG"
+    }
+
+    private fun color(resId: Int): Int = ContextCompat.getColor(this, resId)
+
+    private fun dp(v: Float): Int = (v * resources.displayMetrics.density).toInt()
+
+    private fun lp(matchWidth: Boolean = false): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(
+            if (matchWidth) ViewGroup.LayoutParams.MATCH_PARENT
+            else ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        )
+}

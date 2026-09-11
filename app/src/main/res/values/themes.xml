@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  浅色模式主题。深色模式是 values-night/themes.xml —— 样式不会跨配置合并，
+  那边必须把这里的每一项都写全。
+-->
+<resources>
+    <style name="Theme.SportsWidget" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorPrimaryDark">@color/bg_widget</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@color/bg_widget</item>
+        <item name="android:statusBarColor">@color/bg_widget</item>
+        <!-- 浅色底板上是深色状态栏图标，否则白图标看不见 -->
+        <item name="android:windowLightStatusBar">true</item>
+        <!-- 导航栏两种模式下都用深色，见 colors.xml 的说明 -->
+        <item name="android:navigationBarColor">@color/nav_bar</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+    </style>
+</resources>

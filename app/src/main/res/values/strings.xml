@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">赛事日历</string>
+    <string name="widget_title">赛事日历</string>
+    <string name="widget_description">未来七天的 F1、MotoGP、CS2 猎鹰、皇马、IG 赛程</string>
+
+    <string name="action_refresh">刷新</string>
+
+    <!-- 小组件顶栏状态行 -->
+    <string name="status_loading">刷新中…</string>
+    <string name="status_never">尚未获取数据，点此设置</string>
+
+    <!-- 星期标签。前两个是相对日期，其余按星期几 -->
+    <string name="wday_today">今天</string>
+    <string name="wday_tomorrow">明天</string>
+
+    <!-- App 段落标题 -->
+    <string name="app_title">赛事日历</string>
+    <string name="section_schedule">① 未来七天赛程</string>
+    <string name="section_legend">② 颜色图例</string>
+    <string name="section_sources">③ 数据源状态</string>
+    <string name="section_settings">④ 设置</string>
+
+    <string name="legend_hint">小组件每列只放得下 3 条。同一天比赛多的时候，先保证每个项目各占一条，剩下的按重要性补 —— 正赛、追的队的比赛优先于练习赛。还有项目没显示时，末条会变成「+N」。</string>
+
+    <string name="label_endpoint">自定义数据地址（留空用默认）</string>
+    <string name="hint_endpoint">https://…/calendar.json</string>
+    <string name="interval_label">小组件刷新间隔</string>
+
+    <string name="btn_save">保存并刷新</string>
+    <string name="btn_test">测试连接</string>
+
+    <string name="empty_schedule">未来七天没有赛事</string>
+
+    <string name="toast_saved">已保存，正在刷新小组件…</string>
+
+    <!-- 数据源状态行 -->
+    <string name="source_ok">正常</string>
+    <string name="source_failed">失败</string>
+    <string name="source_disabled">未启用</string>
+    <string name="source_count">%1$d 场</string>
+</resources>

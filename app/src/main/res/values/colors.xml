@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  浅色模式配色（默认）。深色模式在 values-night/colors.xml，颜色名一一对应，
+  布局和代码里只写 @color/xxx，系统切深浅色时自动换值。
+
+  ── 配色规则（改配色时守住这两条，否则会散）──────────────────────────────
+  1. 小组件的身份色（顶栏竖条、刷新图标）刻意用**中性深墨色**，避开五个类别色相。
+     这样画面里唯一的彩度就来自赛事条，一眼扫过去全是「哪天有什么比赛」。
+  2. 五个类别色（cat_*）是**实心色块的填充色**，文字统一用 on_pill。
+     浅色模式：深色块 + 白字；深色模式：亮色块 + 近黑字。
+     两套的对比度都按 4.5:1 反推过（7dp 小字必须过这条线），见下方逐个标注。
+
+  ── 关于「足球为什么是绿色」──────────────────────────────────────────
+  预览图里原本写的是白色（皇马主色），但白底白字在浅色模式下不可见，
+  皇马的白金配色在深色底上也压不住。改用草皮绿，与其余四个色相也能拉开。
+  这是唯一一处偏离最初预览图的地方。
+-->
+<resources>
+
+    <!-- ── 底板 ───────────────────────────────────────────────── -->
+    <color name="bg_widget">#FFFFFFFF</color>
+    <color name="bg_widget_top">#FFFFFFFF</color>
+    <color name="bg_widget_bottom">#FFF1F4F9</color>
+    <color name="bg_card">#FFF8FAFC</color>
+    <color name="bg_card_alt">#FFE2E8F0</color>
+    <color name="hairline">#FFD8DEE9</color>
+    <!-- 导航栏两种模式下都用深色，这样深浅色下导航键都看得清，不必再分 v27 -->
+    <color name="nav_bar">#FF0F172A</color>
+
+    <!-- ── 文字三级 ───────────────────────────────────────────── -->
+    <color name="text_primary">#FF0F172A</color>
+    <color name="text_secondary">#FF475569</color>
+    <color name="text_muted">#FF64748B</color>
+
+    <!-- ── 身份色：只用于顶栏竖条和刷新图标，不参与类别编码 ──────── -->
+    <color name="accent">#FF334155</color>
+    <color name="accent_text">#FF334155</color>
+    <!-- 数据超过 24 小时没更新时，顶栏那行转这个颜色 -->
+    <color name="accent_amber">#FFB6760A</color>
+
+    <!-- ── 五个类别色（也是 chip 的填充色）─────────────────────── -->
+    <!-- F1 · 红：白字对比度 6.4:1 -->
+    <color name="cat_f1">#FFC8102E</color>
+    <!-- MotoGP · 橙：白字 5.2:1 -->
+    <color name="cat_mgp">#FFC2410C</color>
+    <!-- CS2 · 紫：白字 7.4:1 -->
+    <color name="cat_cs2">#FF6D28D9</color>
+    <!-- 足球 · 草皮绿：白字 5.6:1 -->
+    <color name="cat_football">#FF047857</color>
+    <!-- LoL · 蓝：白字 6.9:1 -->
+    <color name="cat_lol">#FF1D4ED8</color>
+
+    <!-- chip 上的文字色。五个类别共用：浅色模式下五个色块都是深色，白字都达标 -->
+    <color name="on_pill">#FFFFFFFF</color>
+    <!-- 超出 3 条时的「+N」提示条，用中性色，不参与类别编码 -->
+    <color name="cat_more">#FF64748B</color>
+
+    <!-- ── 通用 ───────────────────────────────────────────────── -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#FF334155</color>
+</resources>

@@ -1,0 +1,57 @@
+name: Update calendar
+
+# 定时把五个源的赛程抓成一个 data/calendar.json 提交回仓库，手机端只请求这一个文件。
+#
+# cron 为什么是 17 分而不是 0 分：GitHub 的定时任务在高负载时会被推迟甚至跳过，
+# 而整点（0 分）正是全球任务最挤的时刻。错开十几分钟能明显减少「这次没跑」。
+# 对赛程表本身没有影响 —— 数据是提前几周就定好的。
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+# 要把抓取结果提交回仓库，需要写权限
+permissions:
+  contents: write
+
+# 上一次还没跑完就别再起一个，避免两个 job 同时 push 打架
+concurrency:
+  group: update-calendar
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # 脚本只用标准库（外加系统自带的 curl），所以没有 pip install 这一步
+      - name: Fetch calendar
+        run: python tools/fetch_calendar.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/calendar.json app/src/main/assets/calendar.json
+          if git diff --staged --quiet; then
+            echo "内容没变，跳过提交"
+          else
+            git commit -m "chore: 更新赛程 $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
+
+      # 顺带说明两件事：
+      #
+      # 1. 这个 job 每 6 小时提交一次，本身就是「仓库活动」，所以不会踩到
+      #    「公开仓库连续 60 天无活动会被自动停用定时任务」那个坑 —— 自带免疫。
+      #
+      # 2. 产物里包含 app/src/main/assets/calendar.json（打进 APK 的兜底快照）。
+      #    它每 6 小时变一次，但**不会**触发 APK 重新打包 —— build-apk.yml 里
+      #    用 paths-ignore 把这条路排除了。兜底快照陈旧几天无所谓，它只在
+      #    「没网 + 没本地缓存」时才会被用到，为此每 6 小时重打一次 APK 不值。

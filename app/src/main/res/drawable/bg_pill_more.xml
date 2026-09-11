@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  某一天赛事超过 3 条时，第 3 条位置显示的「+N」提示条。
+  刻意用中性灰而不是任何一个类别色 —— 它不代表某个项目，只代表「这里还有」。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/cat_more" />
+    <corners android:radius="3dp" />
+</shape>

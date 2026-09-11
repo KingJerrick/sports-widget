@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 桌面图标前景：一张七列的赛程表，对应小组件的七天格子。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 表头横条 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M28,34 h52 v7 h-52 z" />
+    <!-- 七列，中间三列用淡色区分出「今天」附近的位置感 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M28,47 h6 v22 h-6 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,47 h6 v14 h-6 z" />
+    <path
+        android:fillColor="#FFB9C6FF"
+        android:pathData="M44,47 h6 v22 h-6 z" />
+    <path
+        android:fillColor="#FFB9C6FF"
+        android:pathData="M52,47 h6 v14 h-6 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M60,47 h6 v22 h-6 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M68,47 h6 v14 h-6 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M76,47 h6 v22 h-6 z" />
+</vector>

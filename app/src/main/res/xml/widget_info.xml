@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  4×2 个图标大小。
+
+  桌面单元格换算公式（与 deepseek-widget 一致）：
+      minWidth  = 70 * 列数 - 30  ->  70*4 - 30 = 250dp
+      minHeight = 70 * 行数 - 30  ->  70*2 - 30 = 110dp
+
+  ── 为什么 resizeMode 是双向，但 minResizeWidth 锁死在 250dp ─────────────
+  7 列布局对宽度极其敏感：每列只有 31.7dp，一旦允许拖窄，每列剩十几 dp，
+  所有文字都会变成省略号，小组件就废了。所以宁可不让缩，也不让它缩坏。
+  高度方向留了余量：拉高到 180dp 为止（再高 chip 区就是一大片空白），
+  缩到 110dp 为止（chip 区按实测高度自动减到 2 条或 1 条，见 WidgetRenderer）。
+
+  ── previewLayout / previewImage 两个都要给 ─────────────────────────────
+  previewLayout 是 API 31+ 的路径；31 以下启动器只认 previewImage，缺了它
+  选择器里就是一个默认图标。previewLayout 指向的是**静态**预览布局
+  （widget_sports_preview.xml），不是主布局 —— 主布局的 21 个 chip 是渲染时
+  才填内容的，系统在选择器里不会跑我们的代码，指向主布局会得到一片空白。
+
+  updatePeriodMillis="0"：关掉系统自带的定时刷新（最短只能 30 分钟且不可控），
+  完全交给 WorkManager。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/widget_sports"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="250dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeHeight="180dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:previewLayout="@layout/widget_sports_preview"
+    android:previewImage="@drawable/widget_preview"
+    android:description="@string/widget_description"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

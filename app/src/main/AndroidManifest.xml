@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SportsWidget"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          receiver 要收的不止「刷新」一种广播：
+
+          - APPWIDGET_UPDATE / ACTION_REFRESH：常规刷新（后者是我们自己的，见下）
+          - DATE_CHANGED / TIME_SET / TIMEZONE_CHANGED：跨零点和换时区时把「今天」列挪对位置。
+
+          后三个很关键。WorkManager 的周期任务在 Doze 下会被合并，息屏一整夜可能到早上才跑，
+          这期间小组件高亮的「今天」还是昨天。onReceive 里对这三种 action 只做本地重画
+          （拿已有数据按新时区重算），不联网。
+
+          自定义 action 必须写全限定名，并且在这里显式声明。
+        -->
+        <receiver
+            android:name=".WidgetProvider"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.dailywork.sportswidget.ACTION_REFRESH" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
+
+    </application>
+
+</manifest>
