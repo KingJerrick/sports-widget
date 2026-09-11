@@ -158,6 +158,18 @@ gradle wrapper --gradle-version 8.7 && ./gradlew assembleDebug   # 方式 2：�
 
 `cdn.jsdelivr.net` 在国内时不时会抽风。如果你挂了代理、或者自己搭了镜像，把地址填进「自定义数据地址」框里，它会**优先于**三个默认地址被使用，不用改代码重新打包。
 
+**填哪种地址？** 三种都行：
+
+```
+✅ https://raw.githubusercontent.com/<用户名>/<仓库>/main/data/calendar.json
+✅ https://cdn.jsdelivr.net/gh/<用户名>/<仓库>@main/data/calendar.json
+⚠️ https://github.com/<用户名>/<仓库>/blob/main/data/calendar.json
+```
+
+第三种是**浏览器地址栏里那个**，看着最像但**是错的** —— 它返回的是 GitHub 的 HTML 页面（约 78 万字节），不是数据。
+
+不过这个坑太容易踩（在浏览器里打开文件、复制地址栏，是最自然的操作），所以 App **会自动把它转成 raw 地址**，App 里点「测试连接」会显示转换前后的对照。真要填别的网页地址，会得到一句明确的提示，而不是一句「解析失败」。
+
 ### 「测试连接」会告诉你什么
 
 真的拉一次，然后打出来：试了哪些地址、哪个成功了、多少字节、各类别多少场、**未来七天会显示成什么**（按 3 条算），以及返回 JSON 的结构清单。数据出问题时先点它。

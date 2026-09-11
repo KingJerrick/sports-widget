@@ -228,7 +228,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildDiagnostics(): String = buildString {
+        val entered = Prefs.getEndpoint(this@MainActivity)
         val endpoints = CalendarClient.endpoints(this@MainActivity)
+
+        if (entered.isNotBlank() && endpoints.first() != entered) {
+            // 填了 GitHub 网页地址时会走到这里。不说明的话，用户看着自己填的地址
+            // 和实际用的地址不一样会以为出 bug 了。
+            appendLine("你填的地址是 GitHub 的网页地址，已自动换成 raw 地址：")
+            appendLine("  填的：$entered")
+            appendLine("  用  ：${endpoints.first()}")
+            appendLine()
+        }
         appendLine("尝试的地址（从上往下，第一个成功就停）：")
         endpoints.forEach { appendLine("  · $it") }
         appendLine()
@@ -252,9 +262,23 @@ class MainActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         val parsed = CalendarParser.parse(raw, now, ZoneId.systemDefault())
         if (parsed == null) {
-            appendLine("⚠ 内容不是我们认得的形状，下面是原始结构：")
-            appendLine()
-            appendLine(CalendarParser.describeStructure(raw))
+            if (CalendarClient.looksLikeHtml(raw)) {
+                // 最常见的填错：从浏览器地址栏复制的 github.com 网页地址。
+                // 说清楚该填什么，否则用户只会看到「拉到 78 万字节」然后一头雾水。
+                appendLine("⚠ 拉到的是**网页**，不是数据。")
+                appendLine()
+                appendLine("多半是地址填成了 GitHub 的网页地址。要用下面这种：")
+                appendLine("  ✅ https://raw.githubusercontent.com/<用户名>/<仓库>/main/data/calendar.json")
+                appendLine("  ✅ https://cdn.jsdelivr.net/gh/<用户名>/<仓库>@main/data/calendar.json")
+                appendLine("  ❌ https://github.com/<用户名>/<仓库>/blob/main/data/calendar.json")
+                appendLine()
+                appendLine("blob 形式现在会自动纠正，但只认带 /blob/ 的完整路径 ——")
+                appendLine("如果你填的是仓库首页之类的地址，请换成上面两条之一。")
+            } else {
+                appendLine("⚠ 内容不是我们认得的形状，下面是原始结构：")
+                appendLine()
+                appendLine(CalendarParser.describeStructure(raw))
+            }
             return@buildString
         }
 

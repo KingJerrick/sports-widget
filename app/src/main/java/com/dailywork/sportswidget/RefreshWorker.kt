@@ -77,8 +77,14 @@ object CalendarRefresher {
 
         val parsed = CalendarParser.parse(raw, now, zone)
         if (parsed == null) {
-            // 拿到了东西但不是我们认得的形状（多半是地址填错了，下到了一个网页）
-            Prefs.saveData(context, prev.copy(error = "返回内容不是赛程数据，检查数据地址"))
+            // 拿到了东西但解析不了。分两种情况给不同的话，否则用户完全不知道该改什么。
+            val msg = if (CalendarClient.looksLikeHtml(raw)) {
+                "拉到的是网页不是数据（${raw.length / 1000}KB 的 HTML）—— 检查数据地址，" +
+                        "要填 raw 地址或 jsDelivr 地址，不能填 github.com 的网页地址"
+            } else {
+                "返回内容不是赛程数据，检查数据地址"
+            }
+            Prefs.saveData(context, prev.copy(error = msg))
             WidgetProvider.updateAll(context)
             return false
         }

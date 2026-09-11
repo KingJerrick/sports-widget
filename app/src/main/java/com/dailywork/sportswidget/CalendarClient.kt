@@ -36,11 +36,43 @@ object CalendarClient {
         "https://raw.githubusercontent.com/KingJerrick/sports-widget/main/data/calendar.json",
     )
 
+    /**
+     * 把用户填的地址规整成能直接 GET 的地址。
+     *
+     * ── 为什么需要这个 ──────────────────────────────────────────────────
+     * 在浏览器里打开 `data/calendar.json`，地址栏里是 **github.com 的网页地址**：
+     *
+     *     https://github.com/KingJerrick/sports-widget/blob/main/data/calendar.json
+     *
+     * 复制粘贴过来是最自然的操作，但那个地址返回的是 GitHub 的 HTML 页面
+     * （实测约 78 万字节），不是数据 —— 解析会失败，而且报错信息完全看不出原因。
+     * 所以这里自动把它换成等价的 raw 地址。
+     *
+     *     github.com/{owner}/{repo}/blob/{ref}/{path}
+     *  -> raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}
+     *
+     * `/raw/` 形式（点开文件后的 Download 按钮）一并处理。顺带去掉 `?plain=1`、
+     * `#L12` 这类后缀，它们不影响文件内容但会让 URL 匹配不上。
+     */
+    fun normalizeUrl(raw: String): String {
+        val url = raw.trim().substringBefore('#').substringBefore('?')
+        val m = GITHUB_BLOB_RE.matchEntire(url) ?: return url
+        val (owner, repo, ref, path) = m.destructured
+        return "https://raw.githubusercontent.com/$owner/$repo/$ref/$path"
+    }
+
+    private val GITHUB_BLOB_RE =
+        Regex("""https?://github\.com/([^/]+)/([^/]+)/(?:blob|raw)/([^/]+)/(.+)""")
+
     /** 把当前该用的端点列出来（用户填了自定义地址就只用那个）。 */
     fun endpoints(context: Context): List<String> {
         val custom = Prefs.getEndpoint(context)
-        return if (custom.isNotBlank()) listOf(custom) else DEFAULT_ENDPOINTS
+        return if (custom.isNotBlank()) listOf(normalizeUrl(custom)) else DEFAULT_ENDPOINTS
     }
+
+    /** 拉回来的东西看着像网页而不是数据（多半是地址填成了 GitHub 的网页地址）。 */
+    fun looksLikeHtml(body: String): Boolean =
+        body.trimStart().startsWith("<")
 
     /**
      * 拉一份最新的原始 JSON。
