@@ -27,6 +27,10 @@
     <string name="icons_hint">给每个分组传一张图，会显示在卡片左侧。建议用正方形、图案清晰的图（透明底 PNG 最好）。不上传就用下面的字母块。</string>
     <string name="btn_pick_image">选图</string>
     <string name="btn_clear_image">清除</string>
+    <string name="crop_title">调整图标</string>
+    <string name="crop_hint">拖动挪位置，双指缩放。框里看到的就是卡片上会显示的。</string>
+    <string name="crop_ok">就用这张</string>
+    <string name="crop_reset">重置</string>
     <string name="icon_letter_prefix">字母块</string>
     <string name="icon_uploaded">已上传</string>
     <string name="toast_image_bad">这张图读不出来，换一张试试</string>

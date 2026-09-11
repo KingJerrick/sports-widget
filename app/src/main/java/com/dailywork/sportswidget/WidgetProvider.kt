@@ -281,6 +281,8 @@ object WidgetRenderer {
     // ── 点击 ──────────────────────────────────────────────────────────
 
     private fun applyClicks(context: Context, views: RemoteViews) {
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+
         // 刷新挂在**整条顶栏**上，不是那个 18dp 的图标 ——
         // 18dp 低于 48dp 的最小触控区，边缘点击会被启动器的缩放手柄吃掉。
         views.setOnClickPendingIntent(
@@ -288,7 +290,19 @@ object WidgetRenderer {
             PendingIntent.getBroadcast(
                 context, 1,
                 Intent(context, WidgetProvider::class.java).setAction(WidgetProvider.ACTION_REFRESH),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                flags,
+            ),
+        )
+
+        // 顶栏以外的地方（主要是四周那圈内边距）点了打开 App。
+        // 卡片自己有 fill-in intent 会先接管，所以这里不会和它们抢 ——
+        // 加上它是为了让「随便点小组件哪里都能进 App」，不然只有卡片那一小块有反应。
+        views.setOnClickPendingIntent(
+            R.id.widget_root,
+            PendingIntent.getActivity(
+                context, 2,
+                Intent(context, MainActivity::class.java),
+                flags,
             ),
         )
     }

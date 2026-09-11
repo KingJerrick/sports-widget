@@ -1,5 +1,8 @@
 package com.dailywork.sportswidget
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
@@ -16,6 +19,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
@@ -65,7 +69,7 @@ class MainActivity : AppCompatActivity() {
         val cat = pendingCat
         pendingCat = null
         if (cat == null || uri == null) return@registerForActivityResult
-        saveIcon(cat, uri)
+        openCropper(cat, uri)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -307,12 +311,68 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 存图。解码和缩放都放 IO 线程 —— 用户可能挑了一张几 MB 的照片，
-     * 在主线程解码会卡住界面甚至 ANR。
+     * 选完图先解码出来，交给取景框让用户自己框。
+     *
+     * 解码放 IO 线程 —— 用户可能挑了一张几 MB 的照片，在主线程解码会卡住界面甚至 ANR。
      */
-    private fun saveIcon(cat: Cat, uri: Uri) {
+    private fun openCropper(cat: Cat, uri: Uri) {
         scope.launch {
-            val ok = withContext(Dispatchers.IO) { LogoStore.set(this@MainActivity, cat, uri) }
+            val bmp = withContext(Dispatchers.IO) { decodeForCrop(uri) }
+            if (bmp == null) {
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.toast_image_bad),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                return@launch
+            }
+            showCropDialog(cat, bmp)
+        }
+    }
+
+    /**
+     * 取景对话框。
+     *
+     * 需要它的原因：用户拿来当图标的常常是**从网上截的图**，标根本不在正中间；
+     * 而且直接等比缩放的话，周围留白一多，缩到 28dp 的卡片上就只剩一团糊。
+     * 挪一挪比程序去猜怎么裁靠谱。
+     */
+    private fun showCropDialog(cat: Cat, bmp: Bitmap) {
+        val side = dp(260f)
+        val crop = IconCropView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(side, side)
+            setBitmap(bmp)
+        }
+        val holder = FrameLayout(this).apply {
+            setPadding(dp(20f), dp(12f), dp(20f), dp(4f))
+            addView(crop)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.crop_title)
+            .setMessage(R.string.crop_hint)
+            .setView(holder)
+            .setPositiveButton(R.string.crop_ok) { _, _ ->
+                commitCrop(cat, crop)
+            }
+            .setNeutralButton(R.string.crop_reset, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+
+        // 「重置」不能关掉对话框（默认的 neutral 按钮会关），
+        // 所以这里把它的点击抢过来自己处理
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener { crop.resetToCenter() }
+        }
+        dialog.show()
+    }
+
+    /** 导出用户框好的区域并存下来。 */
+    private fun commitCrop(cat: Cat, crop: IconCropView) {
+        val square = crop.exportSquare(LogoStore.TARGET_PX)
+        scope.launch {
+            val ok = square != null &&
+                    withContext(Dispatchers.IO) { LogoStore.save(this@MainActivity, cat, square) }
             if (ok) {
                 WidgetProvider.updateAll(this@MainActivity)
                 Toast.makeText(
@@ -329,6 +389,62 @@ class MainActivity : AppCompatActivity() {
                 ).show()
             }
         }
+    }
+
+    /**
+     * 解码出一张够用来框选的图。
+     *
+     * 只按上限采样，**不做正方形裁剪** —— 怎么裁由用户在取景框里决定。
+     * 上限 1024 是因为框选时只需要看得清，用不着原图的分辨率；
+     * 直接解一张 4000×3000 的照片进来，光位图就 48MB，很容易 OOM。
+     */
+    private fun decodeForCrop(uri: Uri): Bitmap? = runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= CROP_MAX_PX &&
+            bounds.outHeight / (sample * 2) >= CROP_MAX_PX
+        ) sample *= 2
+
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        val raw = contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, opts)
+        } ?: return null
+
+        applyExifRotation(uri, raw)
+    }.getOrNull()
+
+    /**
+     * 按 EXIF 里的方向信息把图转正。
+     *
+     * 相机拍的照片是躺着存的，方向只写在 EXIF 里，`BitmapFactory` 不会自动应用 ——
+     * 不转的话用户选完图会看到自己的照片横着。
+     */
+    private fun applyExifRotation(uri: Uri, bmp: Bitmap): Bitmap {
+        val orientation = runCatching {
+            contentResolver.openInputStream(uri)?.use { stream ->
+                @Suppress("DEPRECATION")
+                android.media.ExifInterface(stream).getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION,
+                    android.media.ExifInterface.ORIENTATION_NORMAL,
+                )
+            }
+        }.getOrNull() ?: android.media.ExifInterface.ORIENTATION_NORMAL
+
+        val m = Matrix()
+        when (orientation) {
+            android.media.ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+            android.media.ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+            android.media.ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+            android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.postScale(-1f, 1f)
+            android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.postScale(1f, -1f)
+            else -> return bmp
+        }
+        val out = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+        if (out !== bmp) bmp.recycle()
+        return out
     }
 
     private fun renderSources(data: CalendarData) {
@@ -523,6 +639,16 @@ class MainActivity : AppCompatActivity() {
         today -> "今天  ${dateFmt.format(date)}  ${WDAY_CN[date.dayOfWeek.value - 1]}"
         today.plusDays(1) -> "明天  ${dateFmt.format(date)}  ${WDAY_CN[date.dayOfWeek.value - 1]}"
         else -> "${WDAY_CN[date.dayOfWeek.value - 1]}  ${dateFmt.format(date)}"
+    }
+
+    private companion object {
+        /**
+         * 取景时解码的最大边长。
+         *
+         * 只要看得清就行，用不着原图分辨率 —— 直接解一张 4000×3000 的照片进来，
+         * 光位图就 48MB，很容易 OOM。
+         */
+        const val CROP_MAX_PX = 1024
     }
 
     private fun color(resId: Int): Int = ContextCompat.getColor(this, resId)

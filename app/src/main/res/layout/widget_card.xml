@@ -36,6 +36,7 @@
   只能靠 widget_sports.xml 里 ListView 的 dividerHeight 给。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/card_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_card"

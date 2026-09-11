@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.net.Uri
 import java.io.File
 
 /**
@@ -37,7 +36,7 @@ object LogoStore {
      * 用户上传的可能是一张几 MB 的照片，解码后更大 —— 不缩的话五张就顶到上限，
      * 表现是小组件直接不更新（TransactionTooLargeException，而且不好查）。
      */
-    private const val TARGET_PX = 96
+    const val TARGET_PX = 96
 
     /** cat.key -> 已缩放好的位图。binder 线程会读，用 synchronized 保护。 */
     private val memCache = mutableMapOf<String, Bitmap>()
@@ -51,45 +50,31 @@ object LogoStore {
     fun has(context: Context, cat: Cat): Boolean = fileFor(context, cat).exists()
 
     /**
-     * 把用户选的图存下来。
+     * 存下用户在取景框里框好的图。
      *
-     * 用户在相册里挑的那张可能很大（几 MB 的照片），所以这里会先按目标尺寸采样、
-     * 再缩放到正方形画布上居中 —— 各家图标比例不一样，不统一的话卡片左侧
-     * 那一列会参差不齐。
+     * 传进来的应该是 [IconCropView.exportSquare] 出来的正方形位图 ——
+     * 「框哪儿」由用户决定（见 IconCropView 的说明），这里只负责缩到
+     * [TARGET_PX] 并落盘。
      *
-     * @return 成功返回 true。解码不了（选了个损坏的图 / 不是图片）返回 false。
+     * @return 成功返回 true。写盘失败返回 false。
      */
-    fun set(context: Context, cat: Cat, uri: Uri): Boolean {
-        val bmp = runCatching {
-            val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, opts)
-            }
-            if (opts.outWidth <= 0 || opts.outHeight <= 0) return false
-
-            val decodeOpts = BitmapFactory.Options().apply {
-                inSampleSize = sampleSizeFor(opts.outWidth, opts.outHeight, TARGET_PX)
-            }
-            val raw = context.contentResolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, decodeOpts)
-            } ?: return false
-
-            squareScale(raw).also { if (it !== raw) raw.recycle() }
-        }.getOrNull() ?: return false
+    fun save(context: Context, cat: Cat, bitmap: Bitmap): Boolean {
+        val square = squareScale(bitmap)
+        if (square !== bitmap) bitmap.recycle()
 
         val ok = runCatching {
             fileFor(context, cat).outputStream().use {
-                bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
+                square.compress(Bitmap.CompressFormat.PNG, 100, it)
             }
         }.getOrDefault(false)
 
         if (ok) {
             synchronized(memCache) {
                 memCache.remove(cat.key)?.recycle()
-                memCache[cat.key] = bmp
+                memCache[cat.key] = square
             }
         } else {
-            bmp.recycle()
+            square.recycle()
         }
         return ok
     }
@@ -116,12 +101,6 @@ object LogoStore {
     }
 
     // ── 内部实现 ──────────────────────────────────────────────────────
-
-    private fun sampleSizeFor(w: Int, h: Int, target: Int): Int {
-        var sample = 1
-        while (w / (sample * 2) >= target && h / (sample * 2) >= target) sample *= 2
-        return sample
-    }
 
     /** 等比缩放到 TARGET_PX 见方的透明画布上，居中。 */
     private fun squareScale(src: Bitmap): Bitmap {

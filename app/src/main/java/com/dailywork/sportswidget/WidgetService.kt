@@ -69,6 +69,20 @@ class WidgetFactory(private val context: Context) : RemoteViewsService.RemoteVie
         )
 
         bindIcon(views, card)
+
+        // ⚠️ 必须**每一行**都设一个 fill-in intent，卡片才点得动。
+        //
+        // 光在 WidgetRenderer 里给 ListView 设 setPendingIntentTemplate 是不够的 ——
+        // 那个模板只说明「点了之后发什么」，真正让这一行可点击的是这里的 fill-in。
+        // 少了它，模板永远不会被触发，表现就是「点卡片毫无反应」，
+        // 而且不报错、不崩溃，很难往这个方向想。
+        //
+        // 具体点哪张卡不影响行为（都是打开 App），extras 留着是为了以后能深链到某一场。
+        views.setOnClickFillInIntent(
+            R.id.card_root,
+            Intent().putExtra(EXTRA_CARD_ID, card.id),
+        )
+
         return views
     }
 
@@ -104,7 +118,10 @@ class WidgetFactory(private val context: Context) : RemoteViewsService.RemoteVie
 
     override fun hasStableIds(): Boolean = true
 
-    private companion object {
+    companion object {
+        /** 点击卡片时带过去的卡片 id，目前没用到，留给以后深链到某一场。 */
+        const val EXTRA_CARD_ID = "com.dailywork.sportswidget.CARD_ID"
+
         /**
          * 最多放多少张卡。
          *
