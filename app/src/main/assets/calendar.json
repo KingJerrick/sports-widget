@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T11:17:21Z",
+  "generated_at": "2026-09-11T16:28:06Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -29,15 +29,15 @@
       "enabled": true
     },
     "cs2": {
-      "ok": true,
+      "ok": false,
       "count": 0,
-      "error": null,
+      "error": "RuntimeError: HTTP 403：{\"error\": {\"code\": 403, \"reason\": \"Forbidden\" }}",
       "enabled": true
     },
     "football": {
-      "ok": true,
-      "count": 11,
-      "error": null,
+      "ok": false,
+      "count": 0,
+      "error": "RuntimeError: HTTP 403：{\"error\": {\"code\": 403, \"reason\": \"Forbidden\" }}",
       "enabled": true
     },
     "lol": {
@@ -203,20 +203,6 @@
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
-      "id": "sofa-16416331",
-      "cat": "football",
-      "title": "皇马(主) vs Rayo Vallecano · LaLiga",
-      "short": "巴列卡",
-      "start": "2026-09-12T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16416331",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16416331"
-    },
-    {
       "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-f5e930bc-229e-477c-908f-d7d5fc5b7677",
       "cat": "motogp",
       "title": "MotoGP RSM站 · 热身赛",
@@ -257,20 +243,6 @@
       "group": "f1-2026-r14",
       "groupName": "西班牙站",
       "url": "https://www.formula1.com/en/racing/2026"
-    },
-    {
-      "id": "sofa-16416342",
-      "cat": "football",
-      "title": "皇马(客) vs Elche · LaLiga",
-      "short": "埃尔切",
-      "start": "2026-09-15T19:30:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16416342",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16416342"
     },
     {
       "id": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe-3b6dc737-ed42-48c6-9cea-61662f2957b7",
@@ -383,20 +355,6 @@
       "group": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe",
       "groupName": "AUT站",
       "url": null
-    },
-    {
-      "id": "sofa-16416339",
-      "cat": "football",
-      "title": "皇马(客) vs Atlético Madrid · LaLiga",
-      "short": "马竞",
-      "start": "2026-09-20T14:15:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16416339",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16416339"
     },
     {
       "id": "f1-2026-r15-firstpractice",
@@ -791,20 +749,6 @@
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
-      "id": "sofa-16421066",
-      "cat": "football",
-      "title": "皇马(主) vs Villarreal · LaLiga",
-      "short": "比利亚",
-      "start": "2026-10-10T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16421066",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16421066"
-    },
-    {
       "id": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c-f48e4e22-165c-4f5f-bdb5-17391c75e6ff",
       "cat": "motogp",
       "title": "MotoGP INA站 · 热身赛",
@@ -845,48 +789,6 @@
       "group": "f1-2026-r17",
       "groupName": "新加坡站",
       "url": "https://www.formula1.com/en/racing/2026"
-    },
-    {
-      "id": "sofa-16938872",
-      "cat": "football",
-      "title": "皇马(客) vs AS Roma · UEFA Champions League",
-      "short": "ASR",
-      "start": "2026-10-14T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16938872",
-      "groupName": "UEFA Champions League",
-      "url": "https://www.sofascore.com/event/16938872"
-    },
-    {
-      "id": "sofa-16421075",
-      "cat": "football",
-      "title": "皇马(主) vs Sevilla · LaLiga",
-      "short": "塞维",
-      "start": "2026-10-18T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16421075",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16421075"
-    },
-    {
-      "id": "sofa-16938770",
-      "cat": "football",
-      "title": "皇马(主) vs RB Leipzig · UEFA Champions League",
-      "short": "RBL",
-      "start": "2026-10-21T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16938770",
-      "groupName": "UEFA Champions League",
-      "url": "https://www.sofascore.com/event/16938770"
     },
     {
       "id": "mgp-66961f05-2454-4455-9d65-f99c49d25b17-964177f6-f891-451e-b986-fd4cc8bdc60b",
@@ -1071,20 +973,6 @@
       "url": "https://www.formula1.com/en/racing/2026"
     },
     {
-      "id": "sofa-16421080",
-      "cat": "football",
-      "title": "皇马(客) vs FC Barcelona · LaLiga",
-      "short": "巴萨",
-      "start": "2026-10-25T20:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16421080",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16421080"
-    },
-    {
       "id": "mgp-d1aedfce-d7c8-4d4a-9532-99c82547baad-569afaba-2f75-41f8-9f7d-0aa7b7819aae",
       "cat": "motogp",
       "title": "MotoGP MAL站 · 第一次练习",
@@ -1253,20 +1141,6 @@
       "url": null
     },
     {
-      "id": "sofa-16421098",
-      "cat": "football",
-      "title": "皇马(客) vs Real Racing Club · LaLiga",
-      "short": "SAN",
-      "start": "2026-11-01T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16421098",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16421098"
-    },
-    {
       "id": "f1-2026-r19-race",
       "cat": "f1",
       "title": "F1 墨西哥站 · 正赛",
@@ -1279,20 +1153,6 @@
       "group": "f1-2026-r19",
       "groupName": "墨西哥站",
       "url": "https://www.formula1.com/en/racing/2026"
-    },
-    {
-      "id": "sofa-16939047",
-      "cat": "football",
-      "title": "皇马(客) vs AEK Athens · UEFA Champions League",
-      "short": "AEK",
-      "start": "2026-11-04T17:45:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16939047",
-      "groupName": "UEFA Champions League",
-      "url": "https://www.sofascore.com/event/16939047"
     },
     {
       "id": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908-683b79aa-7b1f-4299-935f-8fb15b1c8568",
@@ -1475,20 +1335,6 @@
       "group": "mgp-3f3d3f5e-851c-42d2-887a-8ce8b41fa908",
       "groupName": "QAT站",
       "url": null
-    },
-    {
-      "id": "sofa-16421105",
-      "cat": "football",
-      "title": "皇马(客) vs Valencia · LaLiga",
-      "short": "瓦伦",
-      "start": "2026-11-08T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "sofascore",
-      "rank": 3,
-      "group": "sofa-16421105",
-      "groupName": "LaLiga",
-      "url": "https://www.sofascore.com/event/16421105"
     }
   ]
 }
