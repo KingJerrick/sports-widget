@@ -1,6 +1,7 @@
 package com.dailywork.sportswidget
 
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -8,10 +9,13 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +49,24 @@ class MainActivity : AppCompatActivity() {
     private lateinit var boxSchedule: LinearLayout
     private lateinit var boxLegend: LinearLayout
     private lateinit var boxSources: LinearLayout
+    private lateinit var boxIcons: LinearLayout
+
+    /** 用户点了「选图」之后，等着知道是给哪个分组选的。 */
+    private var pendingCat: Cat? = null
+
+    /**
+     * 打开系统相册挑一张图。
+     *
+     * 用 GetContent，**不需要任何存储权限** —— 系统只把我们挑中的那一个文件
+     * 临时授权给这个 App，不是把整个相册打开。挑完立刻读出来存成自己的 PNG，
+     * 所以这个临时授权过期也无所谓。
+     */
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val cat = pendingCat
+        pendingCat = null
+        if (cat == null || uri == null) return@registerForActivityResult
+        saveIcon(cat, uri)
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -66,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         boxSchedule = findViewById(R.id.box_schedule)
         boxLegend = findViewById(R.id.box_legend)
         boxSources = findViewById(R.id.box_sources)
+        boxIcons = findViewById(R.id.box_icons)
 
         spInterval.adapter = ArrayAdapter(
             this,
@@ -116,6 +139,7 @@ class MainActivity : AppCompatActivity() {
         renderSchedule(data)
         renderLegend(data)
         renderSources(data)
+        renderIcons(data)
     }
 
     private fun renderStatusLine(data: CalendarData) {
@@ -171,8 +195,7 @@ class MainActivity : AppCompatActivity() {
         Cat.entries.forEach { cat ->
             val label = data.labels[cat.key] ?: cat.label
             val mark = data.marks[cat.key] ?: label.take(2)
-            val hasLogo = LogoStore.cached(data.logos[cat.key]) != null
-            val icon = if (hasLogo) "图标已缓存" else "字母块「$mark」"
+            val icon = if (LogoStore.has(this, cat)) "你上传的图标" else "字母块「$mark」"
 
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -188,6 +211,123 @@ class MainActivity : AppCompatActivity() {
                 }
             )
             boxLegend.addView(row)
+        }
+    }
+
+    // ── 卡片图标：用户自己上传 ────────────────────────────────────────
+
+    /**
+     * 每个分组一行：预览 + 名字 + 「选图」+「清除」。
+     *
+     * 图标是用户自己传的，不联网拉 —— 网上拉回来的图明暗不一定配我们的卡片底色
+     * （F1 和 MotoGP 的标本来就是给深色背景用的），尺寸比例也参差不齐。
+     * 自己放一张满意的图，放什么就是什么。
+     */
+    private fun renderIcons(data: CalendarData) {
+        boxIcons.removeAllViews()
+        Cat.entries.forEach { cat ->
+            val label = data.labels[cat.key] ?: cat.label
+            val mark = data.marks[cat.key] ?: label.take(2)
+            val uploaded = LogoStore.has(this, cat)
+
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = lp(matchWidth = true).apply { topMargin = dp(10f) }
+            }
+            row.addView(iconPreview(cat, mark, uploaded))
+            row.addView(
+                TextView(this).apply {
+                    text = if (uploaded) {
+                        "$label  ·  ${getString(R.string.icon_uploaded)}"
+                    } else {
+                        "$label  ·  ${getString(R.string.icon_letter_prefix)}「$mark」"
+                    }
+                    textSize = 13f
+                    setTextColor(color(R.color.text_secondary))
+                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                        .apply { marginStart = dp(12f) }
+                }
+            )
+            row.addView(
+                Button(this).apply {
+                    text = getString(R.string.btn_pick_image)
+                    setOnClickListener { startPick(cat) }
+                }
+            )
+            row.addView(
+                Button(this).apply {
+                    text = getString(R.string.btn_clear_image)
+                    isEnabled = uploaded
+                    setOnClickListener { clearIcon(cat) }
+                }
+            )
+            boxIcons.addView(row)
+        }
+    }
+
+    /** 预览：传了图就显示图，没传就显示卡片上会用的那个字母块。 */
+    private fun iconPreview(cat: Cat, mark: String, uploaded: Boolean): View {
+        val size = dp(40f)
+        val params = FrameLayout.LayoutParams(size, size)
+        return FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(size, size)
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = mark
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setTextColor(color(R.color.on_pill))
+                    background = ContextCompat.getDrawable(this@MainActivity, cat.pillRes)
+                    visibility = if (uploaded) View.GONE else View.VISIBLE
+                },
+                params,
+            )
+            val bmp = LogoStore.cached(cat)
+            addView(
+                ImageView(this@MainActivity).apply {
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setImageBitmap(bmp)
+                    visibility = if (bmp != null) View.VISIBLE else View.GONE
+                },
+                FrameLayout.LayoutParams(size, size),
+            )
+        }
+    }
+
+    private fun startPick(cat: Cat) {
+        pendingCat = cat
+        pickImage.launch("image/*")
+    }
+
+    private fun clearIcon(cat: Cat) {
+        LogoStore.clear(this, cat)
+        WidgetProvider.updateAll(this)
+        renderAll()
+    }
+
+    /**
+     * 存图。解码和缩放都放 IO 线程 —— 用户可能挑了一张几 MB 的照片，
+     * 在主线程解码会卡住界面甚至 ANR。
+     */
+    private fun saveIcon(cat: Cat, uri: Uri) {
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { LogoStore.set(this@MainActivity, cat, uri) }
+            if (ok) {
+                WidgetProvider.updateAll(this@MainActivity)
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.toast_image_saved),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                renderAll()
+            } else {
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.toast_image_bad),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
         }
     }
 
@@ -301,12 +441,12 @@ class MainActivity : AppCompatActivity() {
         val cards = CalendarParser.buildCards(parsed, now, 20)
         if (cards.isEmpty()) appendLine("  （没有待进行的赛事）")
         cards.forEach { c ->
-            val icon = if (LogoStore.cached(c.logoUrl) != null) "图标" else "字母块 ${c.mark}"
+            val icon = if (LogoStore.has(this, c.cat)) "图标" else "字母块 ${c.mark}"
             appendLine("  [${c.cat.key}] ${c.title}  ${formatCardTime(c.nextStartMs, today, zone)}")
             appendLine("        ${c.detail}   （$icon）")
         }
         appendLine()
-        appendLine("图标拉不到就退回字母块，卡片不会开天窗。")
+        appendLine("图标没上传就用字母块 —— 上面 ④ 里可以给每个分组传一张。")
         appendLine()
         appendLine("返回结构：")
         appendLine(CalendarParser.describeStructure(raw, limit = 25))

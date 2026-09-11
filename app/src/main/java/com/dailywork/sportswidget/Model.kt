@@ -98,9 +98,11 @@ data class Card(
     val nextStartMs: Long,
     /** 第二行：赛车项目列出各场次，队伍类显示对手 */
     val detail: String,
-    /** 左侧图标地址，可能没有（离线或后端没给），那时退回字母块 */
-    val logoUrl: String?,
-    /** 图标拉不到时显示的字母块标记，如「F1」「GP」「皇马」 */
+    /**
+     * 图标没上传时显示的字母块标记，如「F1」「GP」「皇马」。
+     *
+     * 图标是用户在 App 里自己传的（见 [LogoStore]），传了就用图，没传用这个。
+     */
     val mark: String,
 )
 
@@ -128,9 +130,7 @@ data class CalendarData(
     val events: List<Event>,
     /** 类别的显示名，如 f1→"F1"、football→"皇马"。后端从 config.json 推导，改队伍会自动跟着变 */
     val labels: Map<String, String>,
-    /** 每个类别的图标地址，App 拉下来缓存到本地 */
-    val logos: Map<String, String>,
-    /** 图标拉不到时的字母块标记 */
+    /** 图标没上传时，每个类别的字母块标记 */
     val marks: Map<String, String>,
     val sources: List<SourceHealth>,
     /** 本次刷新的错误信息（网络失败等），成功后为 null */
@@ -140,7 +140,7 @@ data class CalendarData(
         const val EMPTY_TS = 0L
 
         fun empty(): CalendarData = CalendarData(
-            EMPTY_TS, EMPTY_TS, emptyList(), emptyMap(), emptyMap(), emptyMap(), emptyList(), null,
+            EMPTY_TS, EMPTY_TS, emptyList(), emptyMap(), emptyMap(), emptyList(), null,
         )
 
         // ── 手写 org.json 序列化，不引第三方库 ──────────────────────────
@@ -170,7 +170,6 @@ data class CalendarData(
             root.put("events", arr)
 
             root.put("labels", JSONObject(data.labels as Map<*, *>))
-            root.put("logos", JSONObject(data.logos as Map<*, *>))
             root.put("marks", JSONObject(data.marks as Map<*, *>))
 
             val src = JSONArray()
@@ -232,7 +231,6 @@ data class CalendarData(
                     fetchedAtMs = root.optLong("fetchedAt", EMPTY_TS),
                     events = events,
                     labels = stringMap(root.optJSONObject("labels")),
-                    logos = stringMap(root.optJSONObject("logos")),
                     marks = stringMap(root.optJSONObject("marks")),
                     sources = sources,
                     error = if (root.isNull("error")) null else root.optString("error"),

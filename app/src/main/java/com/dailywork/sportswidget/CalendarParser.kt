@@ -83,7 +83,6 @@ object CalendarParser {
             fetchedAtMs = nowMs,
             events = events.filter { it.startMs in lo until hi }.sortedBy { it.startMs },
             labels = stringMap(root.optJSONObject("labels")),
-            logos = stringMap(root.optJSONObject("logos")),
             marks = stringMap(root.optJSONObject("marks")),
             sources = sources,
             error = null,
@@ -120,7 +119,6 @@ object CalendarParser {
                     name = name,
                     nextStartMs = upcoming.minOf { it.startMs },
                     detail = buildDetail(evs),
-                    logoUrl = data.logos[head.cat.key],
                     // 后端没给 mark 时退回类别名的前两个字符，至少不是空白
                     mark = data.marks[head.cat.key] ?: head.cat.label.take(2),
                 )

@@ -49,34 +49,16 @@ UA = "sports-widget/1.0 (+https://github.com/KingJerrick/sports-widget)"
 # lolesports 网页自己用的公开 key。Riot 随时可能轮换，轮换了改这一行即可。
 LOL_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
 
-# ── 图标地址 ──────────────────────────────────────────────────────────────
-# 每个类别一个图标，App 拉下来缓存到本地，显示在卡片左侧。
+# ── 关于卡片图标 ──────────────────────────────────────────────────────────
+# **后端不管图标**，只下发每个类别的字母块标记（mark 字段，如 F1 / GP / 皇马）。
 #
-# 为什么是「App 运行时去原站拉」而不是打包进 APK 或提交进仓库：
-#   · 队标是别人的商标，扔进公开仓库算是再分发
-#   · 打进 APK 意味着构建时要联网下载，本机 Android Studio 构建会缺资源
-#   · 运行时拉一次就缓存，之后离线也能显示；拉不到就退回字母块，不会开天窗
+# 曾经试过在这里下发图标地址、由 App 去原站拉，放弃了：
+#   · 拉回来的图明暗不一定配 App 的卡片底色 —— F1 和 MotoGP 的标是白色/浅色的，
+#     本来就是给深色背景用的，放到浅色卡片上看不清
+#   · 各家给的尺寸、留白、比例都不一样，排成一列参差不齐
+#   · 来源本身不稳（TLS 指纹风控、403、给的还是 Android 解不了的 SVG）
 #
-# 全部实测过（见每条的注释），格式都是 Android 的 BitmapFactory 能解的。
-# 想换图标直接在这里改，或者在某类的 config 里加 "logo": "..." 覆盖。
-STATIC_LOGOS = {
-    # F1 官网自己的品牌标。原地址是 SVG（Android 解不了），
-    # 好在 media.formula1.com 是 Cloudinary，加个 f_png 参数就转成 PNG 了。
-    "f1": "https://media.formula1.com/image/upload/c_lfill,w_128,h_128,f_png/q_auto"
-          "/v1740000001/fom-website/2026/F1%20App%20Store%20Logo/f1-app-logo.svg",
-    # MotoGP 母公司 Dorna 的静态资源站，180×180 的 PNG
-    "motogp": "https://static.dorna.com/assets/logos/mgp/brand/mgp-favicon-180x180.png",
-}
-
-
-def sofascore_logo(team_id: int) -> str:
-    """Sofascore 的队徽接口。皇马和猎鹰都从这里取，跟随 config 里的 sofascoreId 走。"""
-    return f"https://api.sofascore.com/api/v1/team/{team_id}/image"
-
-
-# 有些源把队标随数据一起给（比如 lolesports），抓的时候顺手记在这里，
-# main() 最后合并进 logos。
-_discovered_logos: dict = {}
+# 现在是**用户在 App 里自己传**，每个分组一张，存本机。传了用图，没传用 mark。
 
 # ── chip 文字的长度上限 ────────────────────────────────────────────────────
 # 小组件每列可用宽约 28.7dp，7dp 字号下能放 3 个汉字或 6 个拉丁字符。
@@ -508,12 +490,6 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
         if not ours:
             continue
 
-        # 队标是随赛程一起给的，顺手记下来给小组件用。
-        # ⚠️ 接口给的是 http:// 地址，Android 9 以后默认禁止明文流量，必须升成 https。
-        img = (ours.get("image") or "").replace("http://", "https://")
-        if img:
-            _discovered_logos["lol"] = img
-
         start = to_utc(ev["startTime"])
         if not (lo <= start <= hi):
             continue
@@ -569,9 +545,7 @@ def main() -> int:
     # 类别的显示名和图标地址，给 App 的卡片标题 + 左侧图标用。
     # 都从 config 里推导，所以改 config 换了队伍，这两张表会自动跟着变。
     labels: dict = {}
-    logos: dict = {}
-    # 字母块标记：图标还没拉下来（首次安装 / 离线 / 被拦）时，
-    # 卡片左侧显示这个，不至于开天窗
+    # 字母块标记：用户还没上传图标时，卡片左侧显示这个
     marks: dict = {}
 
     for cat, fn in SOURCES:
@@ -579,13 +553,6 @@ def main() -> int:
 
         labels[cat] = cfg.get("teamLabel") or cfg.get("label") or cat
         marks[cat] = cfg.get("mark") or labels[cat][:2]
-        if cfg.get("logo"):
-            logos[cat] = cfg["logo"]                      # config 里写死了就用它
-        elif cat in STATIC_LOGOS:
-            logos[cat] = STATIC_LOGOS[cat]
-        elif cfg.get("sofascoreId"):
-            # 换了队伍，队徽地址跟着 sofascoreId 自动变，不用手工同步
-            logos[cat] = sofascore_logo(int(cfg["sofascoreId"]))
 
         if not cfg.get("enabled"):
             health[cat] = {"ok": True, "count": 0, "error": None, "enabled": False}
@@ -605,14 +572,10 @@ def main() -> int:
 
     all_events.sort(key=lambda e: (e["start"], e["cat"]))
 
-    # lolesports 那边队标是随赛程一起给的，抓取时顺手记下来（见 fetch_lol）
-    logos.update(_discovered_logos)
-
     out = {
         "generated_at": iso_z(now),
         "window_days": WINDOW_DAYS,
         "labels": labels,
-        "logos": logos,
         "marks": marks,
         "sources": health,
         "events": all_events,

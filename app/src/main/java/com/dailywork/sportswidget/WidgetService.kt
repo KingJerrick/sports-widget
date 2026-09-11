@@ -73,14 +73,13 @@ class WidgetFactory(private val context: Context) : RemoteViewsService.RemoteVie
     }
 
     /**
-     * 左侧图标：拿到就用真标，没拿到就退回分类色字母块。
+     * 左侧图标：用户传了就用图，没传就退回分类色字母块。
      *
-     * 这是**降级**不是二选一的设计 —— 图标来自外部站点，首次安装、离线、
-     * 或者对方开始拦爬虫时会拿不到。那种时候卡片不能开天窗，
-     * 字母块用的是分类色，所以一眼还是能认出是哪一类。
+     * 图标是用户在 App 里自己上传的（见 [LogoStore]）。没传不是异常状态，
+     * 是默认状态 —— 字母块用的是分类色，一眼还是能认出是哪一类。
      */
     private fun bindIcon(views: RemoteViews, card: Card) {
-        val bmp = LogoStore.cached(card.logoUrl)
+        val bmp = LogoStore.cached(card.cat)
         if (bmp != null) {
             views.setImageViewBitmap(R.id.iv_logo, bmp)
             views.setViewVisibility(R.id.iv_logo, View.VISIBLE)

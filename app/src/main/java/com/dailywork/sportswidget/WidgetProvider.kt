@@ -151,6 +151,11 @@ object WidgetRenderer {
         val data = Prefs.loadData(context)
         val now = System.currentTimeMillis()
 
+        // 确保用户上传的图标在内存里 —— 卡片那边只查内存，不读盘。
+        // 已经在内存里的话这里是一次空转，成本可以忽略；而少了这一句，
+        // 手机重启后（进程被清掉）卡片会一直显示字母块，要等下一次周期刷新才恢复。
+        LogoStore.warmUp(context)
+
         applyDayStrip(context, views, data)
         applyStatus(context, views, data, now, statusOverride)
         attachList(context, views, widgetId)

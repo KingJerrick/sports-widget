@@ -76,7 +76,26 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
-        <!-- ④ 设置 -->
+        <!-- ④ 卡片图标（用户自己上传） -->
+        <TextView
+            style="@style/SectionTitle"
+            android:text="@string/section_icons" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/icons_hint"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+
+        <LinearLayout
+            android:id="@+id/box_icons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- ⑤ 设置 -->
         <TextView
             style="@style/SectionTitle"
             android:text="@string/section_settings" />

@@ -19,9 +19,18 @@
     <string name="section_schedule">① 未来七天赛程</string>
     <string name="section_legend">② 颜色图例</string>
     <string name="section_sources">③ 数据源状态</string>
-    <string name="section_settings">④ 设置</string>
+    <string name="section_icons">④ 卡片图标</string>
+    <string name="section_settings">⑤ 设置</string>
 
-    <string name="legend_hint">小组件每列只放得下 3 条。同一天比赛多的时候，先保证每个项目各占一条，剩下的按重要性补 —— 正赛、追的队的比赛优先于练习赛。还有项目没显示时，末条会变成「+N」。</string>
+    <string name="legend_hint">小组件上每场比赛是一张卡片：左边是图标，右边是「哪一站什么比赛」。一个比赛周末合成一张卡（F1 西班牙站的 FP1/FP2/排位/正赛是同一张），往下滑看更多。顶部那排小字是七天概览，有比赛的日子有底色。</string>
+
+    <string name="icons_hint">给每个分组传一张图，会显示在卡片左侧。建议用正方形、图案清晰的图（透明底 PNG 最好）。不上传就用下面的字母块。</string>
+    <string name="btn_pick_image">选图</string>
+    <string name="btn_clear_image">清除</string>
+    <string name="icon_letter_prefix">字母块</string>
+    <string name="icon_uploaded">已上传</string>
+    <string name="toast_image_bad">这张图读不出来，换一张试试</string>
+    <string name="toast_image_saved">已保存，小组件上的图标已更新</string>
 
     <string name="label_endpoint">自定义数据地址（留空用默认）</string>
     <string name="hint_endpoint">https://…/calendar.json</string>
