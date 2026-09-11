@@ -53,6 +53,11 @@ object CalendarParser {
                 short = o.optString("short"),
                 startMs = startMs,
                 rank = o.optInt("rank", 1),
+                // 后端老版本或本地旧缓存可能没有这两个字段。
+                // 兜底成「一场一张卡」（用 id 当 group），
+                // 总比所有比赛挤成一张卡、标题退化成「F1 · F1」强。
+                group = o.optString("group").ifBlank { o.optString("id") },
+                groupName = o.optString("groupName"),
             )
         }
 
@@ -114,7 +119,7 @@ object CalendarParser {
                     title = "$label · $name",
                     name = name,
                     nextStartMs = upcoming.minOf { it.startMs },
-                    detail = buildDetail(evs, nowMs),
+                    detail = buildDetail(evs),
                     logoUrl = data.logos[head.cat.key],
                     // 后端没给 mark 时退回类别名的前两个字符，至少不是空白
                     mark = data.marks[head.cat.key] ?: head.cat.label.take(2),
@@ -129,7 +134,7 @@ object CalendarParser {
      * 队伍类只有一场，直接写对手（「vs 巴列卡」）；
      * 赛车项目把各场次按时间串起来（「FP1 · FP2 · 排位 · 正赛」）。
      */
-    private fun buildDetail(events: List<Event>, nowMs: Long): String {
+    private fun buildDetail(events: List<Event>): String {
         if (events.size == 1) {
             val only = events.first()
             return if (only.cat.isTeamSport) "vs ${only.short}" else only.short
