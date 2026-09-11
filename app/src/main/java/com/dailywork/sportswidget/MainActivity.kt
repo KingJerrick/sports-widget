@@ -441,7 +441,9 @@ class MainActivity : AppCompatActivity() {
         val cards = CalendarParser.buildCards(parsed, now, 20)
         if (cards.isEmpty()) appendLine("  （没有待进行的赛事）")
         cards.forEach { c ->
-            val icon = if (LogoStore.has(this, c.cat)) "图标" else "字母块 ${c.mark}"
+            // 注意是 this@MainActivity：这整段在 buildString { } 里，
+            // 裸 this 指的是 StringBuilder，不是 Activity
+            val icon = if (LogoStore.has(this@MainActivity, c.cat)) "图标" else "字母块 ${c.mark}"
             appendLine("  [${c.cat.key}] ${c.title}  ${formatCardTime(c.nextStartMs, today, zone)}")
             appendLine("        ${c.detail}   （$icon）")
         }
