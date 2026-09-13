@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T11:50:45Z",
+  "generated_at": "2026-09-13T16:16:00Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -18,13 +18,13 @@
   "sources": {
     "f1": {
       "ok": true,
-      "count": 32,
+      "count": 31,
       "error": null,
       "enabled": true
     },
     "motogp": {
       "ok": true,
-      "count": 51,
+      "count": 50,
       "error": null,
       "enabled": true
     },
@@ -48,34 +48,6 @@
     }
   },
   "events": [
-    {
-      "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-681d26c4-f9e8-4517-813d-d4794ff2ee53",
-      "cat": "motogp",
-      "title": "MotoGP RSM站 · 冲刺赛",
-      "short": "冲刺",
-      "start": "2026-09-12T13:00:00Z",
-      "end": "2026-09-12T13:00:00Z",
-      "venue": "Misano World Circuit Marco Simoncelli",
-      "source": "pulselive",
-      "rank": 3,
-      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
-      "groupName": "RSM站",
-      "url": null
-    },
-    {
-      "id": "f1-2026-r14-qualifying",
-      "cat": "f1",
-      "title": "F1 西班牙站 · 排位赛",
-      "short": "排位",
-      "start": "2026-09-12T14:00:00Z",
-      "end": "2026-09-12T16:00:00Z",
-      "venue": "Madring",
-      "source": "jolpica",
-      "rank": 2,
-      "group": "f1-2026-r14",
-      "groupName": "西班牙站",
-      "url": "https://www.formula1.com/en/racing/2026"
-    },
     {
       "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-f5e930bc-229e-477c-908f-d7d5fc5b7677",
       "cat": "motogp",
