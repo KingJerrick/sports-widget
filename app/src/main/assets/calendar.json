@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T04:46:31Z",
+  "generated_at": "2026-09-13T11:50:45Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -18,13 +18,13 @@
   "sources": {
     "f1": {
       "ok": true,
-      "count": 33,
+      "count": 32,
       "error": null,
       "enabled": true
     },
     "motogp": {
       "ok": true,
-      "count": 54,
+      "count": 51,
       "error": null,
       "enabled": true
     },
@@ -42,82 +42,12 @@
     },
     "lol": {
       "ok": true,
-      "count": 1,
+      "count": 0,
       "error": null,
       "enabled": true
     }
   },
   "events": [
-    {
-      "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-3aaedfe1-b0de-4f87-b16a-edfb92ec931b",
-      "cat": "motogp",
-      "title": "MotoGP RSM站 · 第二次练习",
-      "short": "FP2",
-      "start": "2026-09-12T08:10:00Z",
-      "end": "2026-09-12T08:40:00Z",
-      "venue": "Misano World Circuit Marco Simoncelli",
-      "source": "pulselive",
-      "rank": 1,
-      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
-      "groupName": "RSM站",
-      "url": null
-    },
-    {
-      "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-91f739b3-3ad1-4694-a935-7e8d8cfe7ef6",
-      "cat": "motogp",
-      "title": "MotoGP RSM站 · 排位赛第一节",
-      "short": "排位",
-      "start": "2026-09-12T08:50:00Z",
-      "end": "2026-09-12T09:05:00Z",
-      "venue": "Misano World Circuit Marco Simoncelli",
-      "source": "pulselive",
-      "rank": 2,
-      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
-      "groupName": "RSM站",
-      "url": null
-    },
-    {
-      "id": "lol-117155436343202196",
-      "cat": "lol",
-      "title": "IG vs Anyone's Legend · LPL 淘汰赛 BO5",
-      "short": "AL",
-      "start": "2026-09-12T09:00:00Z",
-      "end": "2026-09-12T12:00:00Z",
-      "venue": null,
-      "source": "lolesports",
-      "rank": 3,
-      "group": "lol-117155436343202196",
-      "groupName": "LPL 淘汰赛",
-      "url": "https://lolesports.com/schedule"
-    },
-    {
-      "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-a727dd62-fd96-4b50-8b05-13b731e13553",
-      "cat": "motogp",
-      "title": "MotoGP RSM站 · 排位赛第二节",
-      "short": "排位",
-      "start": "2026-09-12T09:15:00Z",
-      "end": "2026-09-12T09:30:00Z",
-      "venue": "Misano World Circuit Marco Simoncelli",
-      "source": "pulselive",
-      "rank": 2,
-      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
-      "groupName": "RSM站",
-      "url": null
-    },
-    {
-      "id": "f1-2026-r14-thirdpractice",
-      "cat": "f1",
-      "title": "F1 西班牙站 · 第三次练习",
-      "short": "FP3",
-      "start": "2026-09-12T10:30:00Z",
-      "end": "2026-09-12T12:30:00Z",
-      "venue": "Madring",
-      "source": "jolpica",
-      "rank": 1,
-      "group": "f1-2026-r14",
-      "groupName": "西班牙站",
-      "url": "https://www.formula1.com/en/racing/2026"
-    },
     {
       "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-681d26c4-f9e8-4517-813d-d4794ff2ee53",
       "cat": "motogp",
