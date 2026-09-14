@@ -96,8 +96,12 @@ object GithubDispatch {
 
         var conn: HttpURLConnection? = null
         return try {
-            val c = (URL("$API/repos/$repo/actions/workflows/$WORKFLOW/dispatches")
-                    as HttpURLConnection)
+            // ⚠️ 必须 openConnection() 之后再转 —— 别写成 `URL(...) as HttpURLConnection`。
+            // Kotlin 的 `as` 是不检查的转换，那样写**编译期完全过得去**，
+            // 到运行期才抛「java.net.URL cannot be cast to java.net.HttpURLConnection」。
+            // CalendarClient.httpGet 里也是这个写法，保持一致。
+            val c = URL("$API/repos/$repo/actions/workflows/$WORKFLOW/dispatches")
+                .openConnection() as HttpURLConnection
             conn = c
             c.requestMethod = "POST"
             c.connectTimeout = 10_000
