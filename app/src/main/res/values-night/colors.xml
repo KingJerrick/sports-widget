@@ -18,6 +18,12 @@
     <color name="bg_widget_bottom">#FF05080F</color>
     <color name="bg_card">#FF111B38</color>
     <color name="bg_card_alt">#FF1C2A4E</color>
+    <!-- 深色这两档是**按降饱和程度**分的，不是按明度 —— 底板本身已经近黑
+         （#0B122A→#05080F），再往下压没有空间，第一版的 #0A1024 比底板还暗、
+         卡片看着像挖了个洞。改成「越靠后越灰」，语义一样是「退到后面」。
+         相邻 ΔE 7.5 / 12.7，详见 drawable/bg_card.xml 的说明。 -->
+    <color name="bg_card_live">#FF161D30</color>
+    <color name="bg_card_done">#FF282A2E</color>
     <color name="hairline">#FF263C66</color>
     <color name="nav_bar">#FF070B18</color>
 

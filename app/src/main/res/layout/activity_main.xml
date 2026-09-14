@@ -65,6 +65,16 @@
             android:textColor="@color/text_muted"
             android:textSize="11sp" />
 
+        <!-- 卡片底色那三档的含义。放在图例后面是因为它讲的也是「颜色代表什么」，
+             只不过上面是类别色、这条是状态色。 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/legend_state_hint"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+
         <!-- ③ 数据源状态 -->
         <TextView
             style="@style/SectionTitle"
@@ -133,6 +143,38 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp" />
 
+        <!--
+          GitHub token。留空就只是不启用「手动触发抓取」，其余功能不受影响 ——
+          所以这里没有任何必填校验。说明写进 hint 和下面的小字，
+          因为它不是一看就懂的东西（要建 fine-grained PAT、要勾 Actions 读写）。
+        -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/label_gh_token"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/et_gh_token"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/hint_gh_token"
+            android:inputType="textPassword"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/note_gh_token"
+            android:textColor="@color/text_muted"
+            android:textSize="10sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -158,6 +200,15 @@
                 android:text="@string/btn_test"
                 android:textColor="@color/text_primary" />
         </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_trigger"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:backgroundTint="@color/bg_card"
+            android:text="@string/btn_trigger"
+            android:textColor="@color/text_primary" />
 
         <TextView
             android:id="@+id/tv_result"

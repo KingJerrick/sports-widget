@@ -74,6 +74,10 @@ ENV_PATH = ROOT / "tools" / ".env"
 # 赛程本来就是提前几周就定下来的。
 WINDOW_DAYS = 60
 
+# 往回发布几天。要能盖住 App 那边 5 天的回溯窗口 + 最多 6 小时的抓取间隔 + 余量，
+# 理由见 main() 里用它的地方。
+BACK_DAYS = 7
+
 # 部分 CDN / 站点对没有 UA 的请求直接 403
 UA = "sports-widget/1.0 (+https://github.com/KingJerrick/sports-widget)"
 
@@ -278,8 +282,25 @@ RANK_QUALI = 2  # 排位、冲刺排位
 RANK_PRACTICE = 1
 
 
+def duration_for(cfg: dict, code: str | None = None, default: int = 120) -> int:
+    """
+    这类比赛该算多久（分钟）。App 靠它算「进行中」。
+
+    赛车项目按**场次代号**查 durations 表 —— 正赛和练习赛差着一倍，
+    一个值盖不住；队伍类用 durationMinutes 单个值就够。
+    两张表都从 config 来，所以**改时长不用重装 App**（和改队伍一个路子）。
+
+    这只是个近似：开赛 + 这个时长之前都算在打，不看实际什么时候跑完。
+    App 那边不留缓冲，超了就直接翻成「已结束」。
+    """
+    table = cfg.get("durations")
+    if table and code:
+        return int(table.get(code, default))
+    return int(cfg.get("durationMinutes", default))
+
+
 def make_event(cat, eid, title, short, start, end, venue, source, rank,
-               group, group_name, url=None):
+               group, group_name, url=None, dur=120, result=None, win=None):
     """
     group / group_name：小组件是按**卡片**显示的，一张卡对应一组赛事。
 
@@ -290,6 +311,20 @@ def make_event(cat, eid, title, short, start, end, venue, source, rank,
       队伍类一般没有这种层级，一场比赛就是一张卡，group 用比赛自己的 id。
       **例外是棒球**：一个系列赛（3~4 连战）是一个整体，理由和赛车项目一样 ——
       见 fetch_mlb 里那段说明。
+
+    ── dur / result / win 这三个字段是给「三种状态」用的 ──────────────────
+    **状态不在后端算。** 抓取每 6 小时才跑一次，这份 JSON 最多可能已经过期
+    6 小时 —— 按抓取时刻算出来的「进行中」写进文件，等手机读到的时候早就打完了。
+    所以后端只下发**判据**，由 App 拿设备当前时刻现算：
+
+      dur     典型时长（分钟），开赛 + dur 之前都算在打
+      result  赛果显示串。队伍类统一是「**我们追的队**得分-对手得分」——
+              标题里的主客写法（@ 红人 / vs 巨人）会变，比分跟着变就读不明白了
+      win     这场我们赢了没。App 靠它数系列赛的「N 胜 M 负」；
+              赛车项目没有胜负概念，给 None
+
+    已经结束但超出 24 小时的事件照样下发（窗口本来就覆盖不到那么远），
+    「只显示 24 小时内的」这条规矩在 App 端。
     """
     return {
         "id": eid,
@@ -304,6 +339,9 @@ def make_event(cat, eid, title, short, start, end, venue, source, rank,
         "group": group,
         "groupName": group_name,
         "url": url,
+        "dur": dur,
+        "result": result,
+        "win": win,
     }
 
 
@@ -376,11 +414,45 @@ F1_COUNTRY_CN = {
 }
 
 
+def f1_winner(session_key) -> str | None:
+    """
+    已结束正赛的分站冠军，返回车手代号（ANT / VER 这种）。
+
+    要两跳：session_result 只给 driver_number，得再查 drivers 换名字。
+    实测 2026-09-13 西班牙站 → position 1 / driver_number 12 → Kimi ANTONELLI。
+
+    ⚠️ 失败**不能**让整个 F1 源挂掉 —— 冠军是锦上添花，赛程本身已经拿到了。
+    所以这里自己 try/except，拿不到就返回 None（卡片退化成只有「已结束」）。
+    """
+    try:
+        rows = json.loads(http_get(
+            f"https://api.openf1.org/v1/session_result"
+            f"?session_key={session_key}&position=1"))
+        if not rows or rows[0].get("driver_number") is None:
+            return None
+        drv = json.loads(http_get(
+            f"https://api.openf1.org/v1/drivers"
+            f"?session_key={session_key}&driver_number={rows[0]['driver_number']}"))
+        if not drv:
+            return None
+        # 缩写最适合塞进卡片右侧那个时间位（原本放「09-14 06:40」的地方）；
+        # 没有缩写的旧数据就退回姓氏
+        return drv[0].get("name_acronym") or drv[0].get("last_name")
+    except Exception as exc:  # noqa: BLE001 —— 见 docstring，不能带崩 F1 源
+        print(f"    · 取冠军失败（{type(exc).__name__}），这场不显示冠军")
+        return None
+
+
 def fetch_f1(cfg: dict, lo: datetime, hi: datetime) -> list:
     season = lo.year
     url = f"https://api.openf1.org/v1/sessions?year={season}"
     data = json.loads(http_get(url))
     dump_raw(data, "f1/openf1")
+
+    # 只有「已经跑完的正赛」才值得去查冠军，所以需要一个当前时刻。
+    # 这里的几十秒误差无所谓 —— 它只决定要不要多打两个请求，
+    # 真正的三态判定在 App 端按设备时刻算（见 make_event 的说明）。
+    now = datetime.now(timezone.utc)
 
     events = []
     for s in data:
@@ -407,6 +479,12 @@ def fetch_f1(cfg: dict, lo: datetime, hi: datetime) -> list:
         place = F1_COUNTRY_CN.get(country) or s.get("location") or "?"
         end = to_utc(s["date_end"]) if s.get("date_end") else start + timedelta(hours=1)
 
+        # 只对**已经跑完的正赛**去查冠军。练习赛/排位不查（没意义），
+        # 没跑完的也不查（还没冠军）。所以一周最多两三场比赛会多打两跳。
+        result = None
+        if s.get("session_name") == "Race" and end < now:
+            result = f1_winner(s.get("session_key"))
+
         events.append(make_event(
             cat="f1",
             # session_key 是 OpenF1 自己的稳定主键
@@ -422,6 +500,11 @@ def fetch_f1(cfg: dict, lo: datetime, hi: datetime) -> list:
             group=f"f1-{s.get('meeting_key')}",
             group_name=f"{place}站",
             url=f"https://www.formula1.com/en/racing/{season}",
+            # 场次代号就是 config 里 durations 表的键
+            dur=duration_for(cfg, s.get("session_name")),
+            result=result,
+            # 赛车没有胜负概念
+            win=None,
         ))
     return events
 
@@ -506,6 +589,13 @@ def fetch_motogp(cfg: dict, lo: datetime, hi: datetime) -> list:
                 rank=rank,
                 group=f"mgp-{ev.get('id')}",
                 group_name=f"{place}站",
+                dur=duration_for(cfg, code),
+                # ⚠️ 这里**故意不给 result**：MotoGP 的成绩接口是私有接口的
+                # 非公开路径，试了 9 条全 400/404（详见 config.json 里的 _no_winner）。
+                # 所以 MotoGP 的完赛卡片只标「已结束」，不像 F1 那样显示冠军 ——
+                # 两个赛车类别的完赛卡片长得不一样，这是数据源的限制，不是 bug。
+                result=None,
+                win=None,
             ))
     return events
 
@@ -553,11 +643,6 @@ def fetch_football(cfg: dict, lo: datetime, hi: datetime) -> list:
             if team_id not in (home.get("id"), away.get("id")):
                 continue
 
-            # 已经打完的不进日历。窗口是从「昨天」开始的（见 main），
-            # 不加这层的话昨天那场会挂着一张永远点不亮的卡。
-            if (m.get("status") or "").upper() in ("FINISHED", "AWARDED"):
-                continue
-
             raw_start = m.get("utcDate")
             if not raw_start:
                 continue
@@ -570,6 +655,20 @@ def fetch_football(cfg: dict, lo: datetime, hi: datetime) -> list:
             # 优先用配置里的中文赛事名（PD → 西甲），
             # 它给的是「Primera Division」这种官方全称，显示在卡片上不亲切
             tour = comp_labels.get(code) or (m.get("competition") or {}).get("name") or code
+
+            # 已经打完的把比分带上（不再像以前那样直接跳过）。窗口从「昨天」开始
+            # （见 main），所以这里拿到的多半就是昨晚刚结束的那场。
+            #
+            # 比分一律写成「我们-对手」，不跟着主客变：卡片标题的写法会变
+            # （皇马(主) / 皇马(客)），比分再跟着变就分不清哪个数是我们的了。
+            result, win = None, None
+            if (m.get("status") or "").upper() == "FINISHED":
+                ft = ((m.get("score") or {}).get("fullTime") or {})
+                hs, aws = ft.get("home"), ft.get("away")
+                if hs is not None and aws is not None:
+                    ours, theirs = (hs, aws) if side == "主" else (aws, hs)
+                    result = f"{ours}-{theirs}"
+                    win = ours > theirs
 
             events.append(make_event(
                 cat="football",
@@ -585,6 +684,9 @@ def fetch_football(cfg: dict, lo: datetime, hi: datetime) -> list:
                 rank=RANK_RACE,
                 group=f"fd-{m.get('id')}",
                 group_name=tour,
+                dur=duration_for(cfg),
+                result=result,
+                win=win,
             ))
     return events
 
@@ -636,10 +738,12 @@ def fetch_mlb(cfg: dict, lo: datetime, hi: datetime) -> list:
                 series_key = f"mlb-{g.get('gamePk')}"
 
             state = ((g.get("status") or {}).get("detailedState") or "")
-            # 打完的和推迟的都不进日历。用 startswith 是因为实测有
-            # 「Final」「Final: Tied」「Game Over」几种写法
-            if state.lower().startswith("final") or "postponed" in state.lower():
+            # 推迟的不进日历 —— 它没有确定时间，挂在那里只会占位
+            if "postponed" in state.lower():
                 continue
+            # 打完的**保留**（以前是跳过的），把比分带上。
+            # 用 startswith 是因为实测有「Final」「Final: Tied」「Game Over」几种写法
+            finished = state.lower().startswith("final")
 
             raw_start = g.get("gameDate")
             if not raw_start:
@@ -654,6 +758,16 @@ def fetch_mlb(cfg: dict, lo: datetime, hi: datetime) -> list:
             opp, side = team_side(home, away, team_id)
             opp_name = opp.get("name") or "?"
             opp_short = pick_short(opp.get("abbreviation"), opp.get("name"), cn_map)
+
+            # 比分一律「我们-对手」，不跟着主客变 —— 理由同 fetch_football
+            result, win = None, None
+            if finished and side in ("主", "客"):
+                hs = (sides.get("home") or {}).get("score")
+                aws = (sides.get("away") or {}).get("score")
+                if hs is not None and aws is not None:
+                    ours, theirs = (hs, aws) if side == "主" else (aws, hs)
+                    result = f"{ours}-{theirs}"
+                    win = ours > theirs
 
             events.append(make_event(
                 cat="mlb",
@@ -672,6 +786,9 @@ def fetch_mlb(cfg: dict, lo: datetime, hi: datetime) -> list:
                 # 对手已经写在这里了，所以第二行的「vs 红人」不再重复对手之外的东西，
                 # 多出来的是场次数（「vs 红人 · 4 连战」）。
                 group_name=f"{'@' if side == '客' else 'vs'} {opp_short}",
+                dur=duration_for(cfg),
+                result=result,
+                win=win,
             ))
     return events
 
@@ -724,9 +841,8 @@ def fetch_nba(cfg: dict, lo: datetime, hi: datetime) -> list:
            team_name not in (home.get("full_name"), away.get("full_name")):
             continue
 
-        status = (g.get("status") or "")
-        if status.lower().startswith("final"):
-            continue
+        # 打完的**保留**（以前是跳过的），把比分带上
+        finished = (g.get("status") or "").lower().startswith("final")
 
         raw_start = g.get("date")
         if not raw_start:
@@ -745,6 +861,15 @@ def fetch_nba(cfg: dict, lo: datetime, hi: datetime) -> list:
 
         opp_name = opp.get("full_name") or opp.get("name") or "?"
 
+        # 比分一律「我们-对手」，不跟着主客变 —— 理由同 fetch_football
+        result, win = None, None
+        if finished:
+            hs, aws = g.get("home_team_score"), g.get("visitor_team_score")
+            if hs is not None and aws is not None:
+                ours, theirs = (hs, aws) if ours_home else (aws, hs)
+                result = f"{ours}-{theirs}"
+                win = ours > theirs
+
         events.append(make_event(
             cat="nba",
             eid=f"nba-{g.get('id')}",
@@ -758,6 +883,9 @@ def fetch_nba(cfg: dict, lo: datetime, hi: datetime) -> list:
             group=f"nba-{g.get('id')}",
             # 同 mlb：标题读作「勇士 · NBA」，对齐「皇马 · 西甲」的写法
             group_name="NBA",
+            dur=duration_for(cfg),
+            result=result,
+            win=win,
         ))
     return events
 
@@ -789,52 +917,80 @@ def fetch_cs2(cfg: dict, lo: datetime, hi: datetime) -> list:
     team_name = cfg.get("team") or ""
     team_label = cfg.get("teamLabel") or team_name or "CS2"
 
-    url = "https://api.pandascore.co/csgo/matches/upcoming?per_page=100"
-    data = json.loads(http_get(url, headers={"Authorization": f"Bearer {token}"}))
-    dump_raw(data, "cs2/pandascore")
+    headers = {"Authorization": f"Bearer {token}"}
 
-    # 返回的是一个**数组**，不是对象
+    # 两次请求：未来的和过去的。过去那份专门用来出赛果 ——
+    # results 字段只有 /matches/past 里有，/matches/upcoming 里没有。
+    # past 那份如果失败不该把 upcoming 一起带崩，所以单独 try。
     events = []
-    for m in data or []:
-        opponents = [o.get("opponent") or {} for o in (m.get("opponents") or [])]
-        if len(opponents) < 2:
+    for endpoint, per_page in (("upcoming", 100), ("past", 50)):
+        url = f"https://api.pandascore.co/csgo/matches/{endpoint}?per_page={per_page}"
+        try:
+            data = json.loads(http_get(url, headers=headers))
+        except Exception as exc:  # noqa: BLE001
+            if endpoint == "upcoming":
+                raise
+            # 拿不到过去的比赛只影响赛果，未来的赛程已经拿到了，不值得整源失败
+            print(f"    · 取往期赛果失败（{type(exc).__name__}），这次没有 CS2 比分")
             continue
+        dump_raw(data, f"cs2/pandascore/{endpoint}")
 
-        # 同样双保险：id 优先，队名兜底
-        ours = next((o for o in opponents if o.get("id") == team_id), None)
-        if not ours and team_name:
-            ours = next((o for o in opponents if o.get("name") == team_name), None)
-        if not ours:
-            continue
+        # 返回的是一个**数组**，不是对象
+        for m in data or []:
+            opponents = [o.get("opponent") or {} for o in (m.get("opponents") or [])]
+            if len(opponents) < 2:
+                continue
 
-        raw_start = m.get("begin_at")
-        if not raw_start:
-            continue
-        start = to_utc(raw_start)
-        if not (lo <= start <= hi):
-            continue
+            # 同样双保险：id 优先，队名兜底
+            ours = next((o for o in opponents if o.get("id") == team_id), None)
+            if not ours and team_name:
+                ours = next((o for o in opponents if o.get("name") == team_name), None)
+            if not ours:
+                continue
 
-        opp = next((o for o in opponents if o is not ours), {})
-        # 赛事名尽量拼全：联赛 + 锦标赛，如「BLAST Premier · Fall Final」
-        serie = (m.get("serie") or {}).get("full_name") or ""
-        tour = (m.get("tournament") or {}).get("name") or ""
-        suffix = " · ".join(x for x in (serie, tour) if x) or "CS2"
+            raw_start = m.get("begin_at")
+            if not raw_start:
+                continue
+            start = to_utc(raw_start)
+            if not (lo <= start <= hi):
+                continue
 
-        events.append(make_event(
-            cat="cs2",
-            eid=f"ps-{m.get('id')}",
-            title=f"{team_label} vs {opp.get('name') or '?'} · {suffix}",
-            # 对手的 code 是 2-3 个拉丁字符（如 NAVI / FNC），天然适配小组件，
-            # 所以这里不查中文表 —— 查了反而要多维护一张 60 条的表
-            short=opp.get("acronym") or opp.get("name") or "?",
-            start=start,
-            end=to_utc(m["end_at"]) if m.get("end_at") else None,
-            venue=None,
-            source="pandascore",
-            rank=RANK_RACE,
-            group=f"ps-{m.get('id')}",
-            group_name=suffix,
-        ))
+            opp = next((o for o in opponents if o is not ours), {})
+
+            # 比分一律「我们-对手」，不跟着主客变 —— 理由同 fetch_football。
+            # past 列表里每场都有一个 results 数组，形如
+            # [{"team_id": 1, "score": 2}, {"team_id": 2, "score": 0}]
+            result, win = None, None
+            if endpoint == "past":
+                scores = {r.get("team_id"): r.get("score") for r in (m.get("results") or [])}
+                ow, tw = scores.get(ours.get("id")), scores.get(opp.get("id"))
+                if ow is not None and tw is not None:
+                    result = f"{ow}-{tw}"
+                    win = ow > tw
+
+            # 赛事名尽量拼全：联赛 + 锦标赛，如「BLAST Premier · Fall Final」
+            serie = (m.get("serie") or {}).get("full_name") or ""
+            tour = (m.get("tournament") or {}).get("name") or ""
+            suffix = " · ".join(x for x in (serie, tour) if x) or "CS2"
+
+            events.append(make_event(
+                cat="cs2",
+                eid=f"ps-{m.get('id')}",
+                title=f"{team_label} vs {opp.get('name') or '?'} · {suffix}",
+                # 对手的 code 是 2-3 个拉丁字符（如 NAVI / FNC），天然适配小组件，
+                # 所以这里不查中文表 —— 查了反而要多维护一张 60 条的表
+                short=opp.get("acronym") or opp.get("name") or "?",
+                start=start,
+                end=to_utc(m["end_at"]) if m.get("end_at") else None,
+                venue=None,
+                source="pandascore",
+                rank=RANK_RACE,
+                group=f"ps-{m.get('id')}",
+                group_name=suffix,
+                dur=duration_for(cfg),
+                result=result,
+                win=win,
+            ))
     return events
 
 
@@ -873,6 +1029,18 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
         league = (ev.get("league") or {}).get("name") or ""
         best_of = (match.get("strategy") or {}).get("count")
 
+        # 打完的**保留**，把比分带上。这个接口本来就把整段赛程都返回回来
+        # （含几个月前打完的），靠上面那个窗口过滤把旧的挡在外面。
+        #
+        # 比分一律「我们-对手」，不跟着主客变 —— 理由同 fetch_football。
+        result, win = None, None
+        if ev.get("state") == "completed":
+            ow = (ours.get("result") or {}).get("gameWins")
+            tw = (opp.get("result") or {}).get("gameWins")
+            if ow is not None and tw is not None:
+                result = f"{ow}-{tw}"
+                win = ow > tw
+
         suffix = " ".join(x for x in (league, block) if x)
         events.append(make_event(
             cat="lol",
@@ -890,6 +1058,9 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
             group=f"lol-{match.get('id')}",
             group_name=suffix or "比赛",
             url="https://lolesports.com/schedule",
+            dur=duration_for(cfg),
+            result=result,
+            win=win,
         ))
     return events
 
@@ -944,9 +1115,15 @@ def main() -> int:
     report_secrets()
 
     now = datetime.now(timezone.utc)
-    # 从一天前开始收，这样今天已经打完的场次也能进来 ——
-    # 日历本来就该显示「今天有什么」，而不是「今天还剩什么」。
-    lo = now - timedelta(days=1)
+    # 往回收 7 天，不是 1 天。
+    #
+    # 一开始只要 1 天（「今天已经打完的场次也要进来」），但加了赛果之后不够用了：
+    # 棒球一个系列赛横跨 4 天，等它打完的时候，前面几场早就掉出 1 天的窗口 ——
+    # 系列赛战绩会从「3 胜 1 负」退化成「1 胜 0 负」，看着像只打了一场。
+    #
+    # 7 天 = App 那边 5 天的回溯窗口 + 最多 6 小时的抓取间隔 + 一点余量，
+    # 保证 App 想看的区间在发布出来的数据里一定是完整的。
+    lo = now - timedelta(days=BACK_DAYS)
     hi = now + timedelta(days=WINDOW_DAYS)
 
     all_events: list = []

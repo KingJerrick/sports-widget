@@ -20,6 +20,16 @@
     "label": "F1",
     "_source": "OpenF1（api.openf1.org），免 key。一次请求拿到整年全部场次，含练习赛和冲刺赛",
     "_no_session_filter": "这里不再需要场次白名单 —— OpenF1 会给全，脚本里按 session_name 认表，认不出的（冬测 Day 1/2/3）自动跳过",
+    "_durations": "各场次的典型时长（分钟）。App 用它算「进行中」：开赛时刻 + 这个时长之前都算在打。**只是近似**，不看实际什么时候跑完。改这里不用重装 App",
+    "durations": {
+      "Practice 1": 60,
+      "Practice 2": 60,
+      "Practice 3": 60,
+      "Qualifying": 60,
+      "Sprint Qualifying": 45,
+      "Sprint": 60,
+      "Race": 120
+    },
     "_mark": "图标拉不到时，卡片左侧显示的字母块标记",
     "mark": "F1"
   },
@@ -29,6 +39,18 @@
     "_class": "只抓这个组别。MotoGP 一个周末同时有 Moto2/Moto3，不过滤会把三组比赛全混进来",
     "class": "MotoGP",
     "_risk": "⚠️ 全套里唯一剩下的网页私有接口（api.motogp.pulselive.com）。没有能长期用的注册制 MotoGP 源，详见 README 的「数据是从哪来的」",
+    "_no_winner": "这个源能拿到每个场次的 status（FINISHED / LIVE），但**拿不到冠军名字** —— 成绩接口是它的非公开路径，试了 9 条全 400/404。所以 MotoGP 的完赛卡片只标「已结束」，不像 F1 那样显示冠军",
+    "_durations": "同 F1，见上面那段说明",
+    "durations": {
+      "FP1": 45,
+      "FP2": 45,
+      "PR": 45,
+      "Q1": 30,
+      "Q2": 30,
+      "SPR": 45,
+      "WUP": 30,
+      "RAC": 60
+    },
     "_mark": "同上。MotoGP 六个字母放不下，用 GP",
     "mark": "GP"
   },
@@ -46,6 +68,8 @@
       "CL": "欧冠"
     },
     "_competitionLabels": "它给的 competition.name 是「Primera Division」这种官方全称，显示在卡片标题上不亲切，所以本地换中文",
+    "_durationMinutes": "一场球的典型时长（分钟）。App 用它算「进行中」：开赛 + 这个时长之前都算在打。只是近似，不看实际什么时候吹哨",
+    "durationMinutes": 120,
     "_opponentCn": "对手短名中文覆盖表，按三字母代号查（football-data.org 的 tla 字段）。最多 3 个汉字 —— 小组件每列只放得下这些；查不到就直接用 3 字母代号",
     "opponentCn": {
       "BAR": "巴萨",
@@ -101,6 +125,8 @@
     "teamLabel": "道奇",
     "_source": "MLB Stats API（statsapi.mlb.com），**MLB 官方接口，免 key**。没有比它更权威的源了",
     "mlbTeamId": 119,
+    "_durationMinutes": "棒球一场算四小时（用户指定）。棒球没有固定时长，四小时是个偏长的保守值",
+    "durationMinutes": 240,
     "_opponentCn": "按 team.abbreviation 查（LAD / SF / SD 这种）。MLB 有 30 支队，表列全了 —— 道奇一个赛季要跟全联盟交手",
     "opponentCn": {
       "LAA": "天使",
@@ -145,6 +171,8 @@
     "_source": "balldontlie（api.balldontlie.io），注册制。key 在 BALLDONTLIE_KEY，注意 Authorization 头不带 Bearer 前缀",
     "_why_not_official": "官方端点实测已封：stats.nba.com 带全套头返回 200 但内容是 NBA.com 首页 HTML，cdn.nba.com 403，data.nba.net 证书错误",
     "balldontlieTeamId": 10,
+    "_durationMinutes": "同足球。NBA 一场连暂停带中场约 2.5 小时",
+    "durationMinutes": 180,
     "_id_check": "10 是勇士。万一它对不上，脚本会退回按 team 的 full_name 匹配，不会没数据",
     "_opponentCn": "同样按 abbreviation 查（GSW / LAL / BOS 这种）",
     "opponentCn": {
@@ -197,6 +225,8 @@
     "_source": "PandaScore（api.pandascore.co），注册制。key 在 PANDASCORE_TOKEN，Bearer 前缀",
     "pandascoreTeamId": null,
     "_pandascoreTeamId": "留空就按队名匹配（脚本里有兜底，能正常工作）。想填的话去 api.pandascore.co/csgo/teams?search[name]=Team Falcons 查 id —— 用 id 比队名稳，改名了也不会漏",
+    "_durationMinutes": "BO3 大概三小时（含赛前和局间）",
+    "durationMinutes": 180,
     "mark": "猎鹰"
   },
   "lol": {
@@ -206,6 +236,8 @@
     "teamLabel": "IG",
     "leagueId": "98767991314006698",
     "_key": "用的是 Riot 网页端的公开 key，不是本项目自己的凭证，所以没走 Secrets —— 原因见 tools/fetch_calendar.py 里 LOL_API_KEY 的注释",
+    "_durationMinutes": "BO3 约三小时",
+    "durationMinutes": 180,
     "_mark": "同上",
     "mark": "IG"
   }

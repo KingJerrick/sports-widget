@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">赛事日历</string>
     <string name="widget_title">赛事日历</string>
-    <string name="widget_description">未来七天的 F1、MotoGP、CS2 猎鹰、皇马、IG 赛程</string>
+    <string name="widget_description">未来七天的 F1、MotoGP、皇马、道奇、勇士、猎鹰、IG 赛程</string>
 
     <string name="action_refresh">刷新</string>
 
@@ -22,7 +22,8 @@
     <string name="section_icons">④ 卡片图标</string>
     <string name="section_settings">⑤ 设置</string>
 
-    <string name="legend_hint">小组件上每场比赛是一张卡片：左边是图标，右边是「哪一站什么比赛」。一个比赛周末合成一张卡（F1 西班牙站的 FP1/FP2/排位/正赛是同一张），往下滑看更多。顶部那排小字是七天概览，有比赛的日子有底色。</string>
+    <string name="legend_hint">小组件上每场比赛是一张卡片：左边是图标，右边是「哪一站什么比赛」。一个比赛周末合成一张卡（F1 西班牙站的 FP1/FP2/排位/正赛是同一张），棒球则是一个系列赛合成一张卡。往下滑看更多。顶部那排小字是七天概览，有比赛的日子有底色。</string>
+    <string name="legend_state_hint">卡片底色表示状态，越暗越接近结束：未开始最亮，比赛中居中，已结束最暗。已结束的卡片会置顶，右侧显示比分 / 系列赛战绩 / 分站冠军，只保留 24 小时内的。「比赛中」是按开赛时刻加一个典型时长估的，不看实际什么时候结束。</string>
 
     <string name="icons_hint">给每个分组传一张图，会显示在卡片左侧。建议用正方形、图案清晰的图（透明底 PNG 最好）。不上传就用下面的字母块。</string>
     <string name="btn_pick_image">选图</string>
@@ -40,8 +41,15 @@
     <string name="hint_endpoint">https://…/calendar.json</string>
     <string name="interval_label">小组件刷新间隔</string>
 
+    <string name="label_gh_token">GitHub token（手动触发抓取用，可留空）</string>
+    <string name="hint_gh_token">github_pat_…</string>
+    <string name="note_gh_token">建一个 fine-grained PAT，只授权这个仓库、只勾 Actions 的读写权限。它只存在这台手机上，不会进仓库、也不会打进 APK。留空的话「保存并刷新」照常能用，只是拉到的还是后端上一次抓的那份。</string>
+
     <string name="btn_save">保存并刷新</string>
     <string name="btn_test">测试连接</string>
+    <string name="btn_trigger">立即触发 GitHub 抓取</string>
+
+    <string name="toast_trigger_ok">已让 GitHub 开始抓取，2 分钟后自动回来取新数据</string>
 
     <string name="empty_schedule">未来七天没有赛事</string>
 

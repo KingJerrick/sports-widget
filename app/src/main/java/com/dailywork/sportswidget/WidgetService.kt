@@ -63,10 +63,14 @@ class WidgetFactory(private val context: Context) : RemoteViewsService.RemoteVie
         val zone = ZoneId.systemDefault()
         views.setTextViewText(R.id.tv_card_title, card.title)
         views.setTextViewText(R.id.tv_card_detail, card.detail)
-        views.setTextViewText(
-            R.id.tv_card_time,
-            formatCardTime(card.nextStartMs, LocalDate.now(zone), zone),
-        )
+        views.setTextViewText(R.id.tv_card_time, rightText(card, zone))
+
+        // 三档底色按时态切。**只能切预置 drawable**，不能用运行时 tint ——
+        // RemoteViews 的着色 API 是 API 31 才公开的，minSdk 26 上编译过得去、
+        // 运行期直接抛异常，表现是桌面显示「载入小组件时出现问题」。
+        // 色值怎么定的见 drawable/bg_card.xml。
+        views.setInt(R.id.card_root, "setBackgroundResource", cardBgRes(card.status))
+        applyTextTone(views, card.status)
 
         bindIcon(views, card)
 
@@ -84,6 +88,46 @@ class WidgetFactory(private val context: Context) : RemoteViewsService.RemoteVie
         )
 
         return views
+    }
+
+    /**
+     * 右侧那个位置写什么。
+     *
+     * 它原本只放「下一场时间」。已经打完的比赛再显示一个未来的时间就没意义了 ——
+     * 而比分 / 系列赛战绩 / 分站冠军正是这时候最该看到的，所以按时态分三种。
+     */
+    private fun rightText(card: Card, zone: ZoneId): String = when (card.status) {
+        EventStatus.UPCOMING -> formatCardTime(card.nextStartMs, LocalDate.now(zone), zone)
+        EventStatus.LIVE -> "进行中"
+        // 赛果可能没有（MotoGP 拿不到冠军、刚打完还没回填比分），那时退回「已结束」
+        EventStatus.FINISHED -> card.result ?: "已结束"
+    }
+
+    /** 卡片底色按时态切三档。色值依据见 drawable/bg_card.xml。 */
+    private fun cardBgRes(status: EventStatus): Int = when (status) {
+        EventStatus.UPCOMING -> R.drawable.bg_card
+        EventStatus.LIVE -> R.drawable.bg_card_live
+        EventStatus.FINISHED -> R.drawable.bg_card_done
+    }
+
+    /**
+     * 底色变深之后，第二行原来的 text_muted 对比度会掉到 4.5:1 以下
+     * （实测浅色模式下：进行中 4.00、已结束 3.44），所以这两档换成深一级的
+     * text_secondary，把对比度拉回 5.5 以上。
+     *
+     * 所以**没有**给已结束的卡片做「文字降淡」—— 那和底色变深是互相抵消的，
+     * 两个一起上必然跌破这个项目给 7~9dp 小字定的 4.5:1 底线（见 colors.xml）。
+     * 状态靠底色区分就够了。
+     *
+     * 注：每一次 getViewAt 都是**新建**的 RemoteViews，所以这里不设颜色时
+     * 布局里的 XML 默认值自然会生效，不需要在 else 分支里把默认值再写一遍。
+     */
+    private fun applyTextTone(views: RemoteViews, status: EventStatus) {
+        if (status == EventStatus.UPCOMING) return
+        views.setTextColor(
+            R.id.tv_card_detail,
+            ContextCompat.getColor(context, R.color.text_secondary),
+        )
     }
 
     /**

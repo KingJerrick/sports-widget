@@ -23,6 +23,11 @@
     <color name="bg_widget_bottom">#FFF1F4F9</color>
     <color name="bg_card">#FFF8FAFC</color>
     <color name="bg_card_alt">#FFE2E8F0</color>
+    <!-- 卡片底色的另外两档：进行中 / 已结束。
+         三档之间按 Lab 色差拉开（相邻 7.2 / 6.1，人眼阈值约 2.3），
+         不是按明度差 —— 为什么这点很要紧，见 drawable/bg_card.xml 的说明。 -->
+    <color name="bg_card_live">#FFE4ECF7</color>
+    <color name="bg_card_done">#FFD2DCEB</color>
     <color name="hairline">#FFD8DEE9</color>
     <!-- 导航栏两种模式下都用深色，这样深浅色下导航键都看得清，不必再分 v27 -->
     <color name="nav_bar">#FF0F172A</color>

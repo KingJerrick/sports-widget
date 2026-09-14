@@ -105,10 +105,13 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- F1 · 西班牙站 -->
+        <!-- F1 · 西班牙站 —— **已结束**那张。三张卡刻意各演示一种状态
+             （已结束 bg_card_done / 进行中 bg_card_live / 未开始 bg_card），
+             这样在选择器里就能看出三种底色的差别。
+             真机上这张会置顶，因为已结束的排在最前面。 -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:background="@drawable/bg_card" android:gravity="center_vertical"
+            android:background="@drawable/bg_card_done" android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="8dp" android:paddingTop="5dp"
             android:paddingEnd="8dp" android:paddingBottom="5dp">
@@ -134,23 +137,25 @@
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:layout_marginStart="6dp" android:includeFontPadding="false"
                         android:minHeight="0dp" android:padding="0dp"
-                        android:text="今天 19:30" android:textColor="@color/text_secondary"
+                        android:text="ANT" android:textColor="@color/text_secondary"
                         android:textSize="9dp" />
                 </LinearLayout>
+                <!-- 打完的卡片第二行：赛车保留场次名，前面挂「已结束」 -->
                 <TextView
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="1dp" android:includeFontPadding="false"
                     android:minHeight="0dp" android:padding="0dp"
-                    android:text="FP1 · FP2 · 排位 · 正赛" android:textColor="@color/text_muted"
+                    android:text="已结束 · FP1 · FP2 · FP3 · 排位 · 正赛"
+                    android:textColor="@color/text_secondary"
                     android:textSize="9dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- MotoGP · RSM站 -->
+        <!-- MotoGP · RSM站 —— **进行中**那张（右侧显示「进行中」，底色取中间档） -->
         <LinearLayout
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:background="@drawable/bg_card" android:gravity="center_vertical"
+            android:background="@drawable/bg_card_live" android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="8dp" android:paddingTop="5dp"
             android:paddingEnd="8dp" android:paddingBottom="5dp">
@@ -176,14 +181,15 @@
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:layout_marginStart="6dp" android:includeFontPadding="false"
                         android:minHeight="0dp" android:padding="0dp"
-                        android:text="今天 21:00" android:textColor="@color/text_secondary"
+                        android:text="进行中" android:textColor="@color/text_secondary"
                         android:textSize="9dp" />
                 </LinearLayout>
                 <TextView
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginTop="1dp" android:includeFontPadding="false"
                     android:minHeight="0dp" android:padding="0dp"
-                    android:text="FP1 · 练习 · 排位 · 冲刺 · 正赛" android:textColor="@color/text_muted"
+                    android:text="FP1 · 练习 · 排位 · 冲刺 · 正赛"
+                    android:textColor="@color/text_secondary"
                     android:textSize="9dp" />
             </LinearLayout>
         </LinearLayout>

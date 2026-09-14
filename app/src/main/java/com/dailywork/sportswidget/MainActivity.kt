@@ -47,6 +47,7 @@ import java.util.Locale
 class MainActivity : AppCompatActivity() {
 
     private lateinit var etEndpoint: EditText
+    private lateinit var etGhToken: EditText
     private lateinit var spInterval: Spinner
     private lateinit var tvStatusLine: TextView
     private lateinit var tvResult: TextView
@@ -86,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         etEndpoint = findViewById(R.id.et_endpoint)
+        etGhToken = findViewById(R.id.et_gh_token)
         spInterval = findViewById(R.id.sp_interval)
         tvStatusLine = findViewById(R.id.tv_status_line)
         tvResult = findViewById(R.id.tv_result)
@@ -104,6 +106,7 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_save).setOnClickListener { saveAndRefresh() }
         findViewById<Button>(R.id.btn_test).setOnClickListener { runDiagnostics() }
+        findViewById<Button>(R.id.btn_trigger).setOnClickListener { triggerFetch() }
 
         loadIntoForm()
     }
@@ -122,6 +125,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadIntoForm() {
         etEndpoint.setText(Prefs.getEndpoint(this))
+        etGhToken.setText(Prefs.getGithubToken(this))
         val minutes = Prefs.getIntervalMinutes(this)
         // 找不到就把最接近的选项选上（用户手改过 SharedPreferences 时也不会崩）
         spInterval.setSelection(intervalOptions.indexOf(minutes).takeIf { it >= 0 } ?: 2)
@@ -129,10 +133,48 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveAndRefresh() {
         Prefs.setEndpoint(this, etEndpoint.text.toString())
+        Prefs.setGithubToken(this, etGhToken.text.toString())
         Prefs.setIntervalMinutes(this, intervalOptions[spInterval.selectedItemPosition])
         RefreshScheduler.schedule(this, immediate = true)
         Toast.makeText(this, getString(R.string.toast_saved), Toast.LENGTH_SHORT).show()
         tvStatusLine.postDelayed({ renderAll() }, 1500)
+    }
+
+    /**
+     * 「立即触发 GitHub 抓取」。
+     *
+     * 按顺序做三件事：
+     *   1. 先把 token 存下来 —— 用户多半是刚填完就直接点这个按钮的，
+     *      而存 token 原本只发生在「保存并刷新」里
+     *   2. 让 GitHub 现在就开始跑 workflow
+     *   3. 排一个 2 分钟后自动回来取数的任务
+     *
+     * **第 3 步不能省。** 触发只是让后端开始抓，手机本地还是旧数据 ——
+     * 不等那两分钟的话，用户点完看到的画面和点之前一模一样，
+     * 只会以为按钮没生效。
+     *
+     * 触发成功后顺带也立刻取一次：万一后端刚好跑完、或者上一次的产物
+     * 还没被拉到，这一步就能立刻拿到新数据，不用等那两分钟。
+     */
+    private fun triggerFetch() {
+        Prefs.setGithubToken(this, etGhToken.text.toString())
+
+        tvResult.text = "正在触发…"
+        scope.launch {
+            // 发 HTTP 请求，不能放在主线程
+            val err = withContext(Dispatchers.IO) { GithubDispatch.trigger(this@MainActivity) }
+            if (err == null) {
+                RefreshScheduler.scheduleDelayedFetch(this@MainActivity)
+                RefreshScheduler.schedule(this@MainActivity, immediate = true)
+                tvResult.text = getString(R.string.toast_trigger_ok)
+                Toast.makeText(
+                    this@MainActivity, getString(R.string.toast_trigger_ok), Toast.LENGTH_LONG,
+                ).show()
+            } else {
+                // 失败原因是人话（没配 token / 权限不够 / 认不出仓库），直接显示
+                tvResult.text = "❌ $err"
+            }
+        }
     }
 
     // ── 渲染三块 ──────────────────────────────────────────────────────
@@ -180,7 +222,7 @@ class MainActivity : AppCompatActivity() {
             boxSchedule.addView(sectionLabel(dayLabel(today, date)))
 
             events.forEach { e ->
-                boxSchedule.addView(eventRow(e, zone, e.isPast(now)))
+                boxSchedule.addView(eventRow(e, zone, e.statusAt(now)))
                 shown++
             }
         }
@@ -572,13 +614,15 @@ class MainActivity : AppCompatActivity() {
 
     // ── 小组件用不到的绘制小工具 ──────────────────────────────────────
 
-    private fun eventRow(e: Event, zone: ZoneId, past: Boolean): View {
+    private fun eventRow(e: Event, zone: ZoneId, status: EventStatus): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_card)
             setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
             layoutParams = lp(matchWidth = true).apply { topMargin = dp(6f) }
-            alpha = if (past) 0.5f else 1f
+            // 打完的整行压暗。这里用的是整行 alpha，和小组件那边换卡片底色的做法
+            // 不一样 —— 这个列表是自己的布局，不是 RemoteViews，没有「不能运行时着色」的限制
+            alpha = if (status == EventStatus.FINISHED) 0.5f else 1f
         }
 
         // 左侧色条：3dp 宽，颜色就是小组件里那个类别色
@@ -602,9 +646,16 @@ class MainActivity : AppCompatActivity() {
             }
         )
         val when_ = Instant.ofEpochMilli(e.startMs).atZone(zone).format(timeFmt)
+        // 第二行：时间 · 类别 · 状态（+ 赛果）
+        val tail = when (status) {
+            EventStatus.UPCOMING -> ""
+            EventStatus.LIVE -> "  ·  进行中"
+            // 赛果可能没有（MotoGP 拿不到冠军、刚打完还没回填比分），那时只写「已结束」
+            EventStatus.FINISHED -> "  ·  已结束" + (e.result?.let { "  $it" } ?: "")
+        }
         col.addView(
             TextView(this).apply {
-                text = "$when_  ·  ${e.cat.label}" + if (past) "  ·  已结束" else ""
+                text = "$when_  ·  ${e.cat.label}$tail"
                 textSize = 10f
                 setTextColor(color(R.color.text_muted))
             }

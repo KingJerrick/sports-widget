@@ -77,7 +77,10 @@ class WidgetProvider : AppWidgetProvider() {
                         statusOverride = context.getString(R.string.status_loading),
                     )
                 }
-                RefreshScheduler.schedule(context, immediate = true)
+                // triggerRemote：用户手动点的，顺便让 GitHub 也去抓一趟，
+                // 两分钟后再自动回来取新数据。没配 token 时这一步会静默跳过，
+                // 退化成「只拉现成的」，也就是以前的行为（见 RefreshWorker.doWork）
+                RefreshScheduler.schedule(context, immediate = true, triggerRemote = true)
             }
 
             // 跨零点 / 手动改时间 / 换时区：只按新时区重算「今天」和卡片时间文案，**不联网**。

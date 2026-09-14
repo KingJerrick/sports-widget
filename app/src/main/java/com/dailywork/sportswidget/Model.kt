@@ -66,6 +66,20 @@ enum class Cat(
     }
 }
 
+/**
+ * 一场比赛在**当前时刻**处于哪个阶段。
+ *
+ * ⚠️ 这个状态是 App 拿设备当前时刻**现算**的，不是后端下发的。
+ * 抓取每 6 小时才跑一次，后端算好的「进行中」写进 JSON 之后，等手机读到的时候
+ * 那场比赛早就打完了。所以后端只下发 [Event.durationMinutes]（典型时长），
+ * 状态在这一端现推 —— 见 tools/fetch_calendar.py 里 make_event 的说明。
+ *
+ * 「进行中」是**近似**的：开赛 + 典型时长之前都算在打，不看实际什么时候结束。
+ * 打了 12 局的棒球会超过四小时、下雨中断的足球会短于一小时，都认了 ——
+ * 精确的实时状态得一场一场单独去查，为这个小组件不值当。
+ */
+enum class EventStatus { UPCOMING, LIVE, FINISHED }
+
 /** 单场赛事。只保留小组件和列表页真正用得到的字段。 */
 data class Event(
     val id: String,
@@ -76,6 +90,13 @@ data class Event(
     val short: String,
     /** 开始时间，UTC epoch 毫秒 */
     val startMs: Long,
+    /**
+     * 典型时长（分钟），后端按类别下发（赛车再按场次细分：正赛 120、排位 60）。
+     *
+     * 缺字段的老缓存给 0 —— 那时 [statusAt] 会退化成「一开赛就算结束」，
+     * 显示得不准但不会崩。
+     */
+    val durationMinutes: Int,
     /**
      * 重要性，3 = 正赛/冲刺赛/追的队的比赛，2 = 排位，1 = 练习。
      *
@@ -91,9 +112,34 @@ data class Event(
     val group: String,
     /** 卡片标题的后半段：「西班牙站」「LaLiga」「LPL 淘汰赛」 */
     val groupName: String,
+    /**
+     * 打完之后才有：队伍类是「我们得分-对手得分」（如 `4-6`，**不跟主客变**），
+     * 赛车是冠军代号（如 `ANT`）。还没打完就是 null。
+     *
+     * 比分固定写「我们-对手」是因为卡片标题的写法会变（`@ 红人` / `vs 巨人`），
+     * 比分再跟着主客调顺序，就分不清哪个数才是我们的了。
+     */
+    val result: String?,
+    /**
+     * 这场我们赢了没。App 靠它数系列赛的「N 胜 M 负」。
+     * 赛车没有胜负概念、没打完也谈不上输赢，都是 null。
+     */
+    val win: Boolean?,
 ) {
-    /** 是不是已经开赛了。用当前时刻算，不用后端下发 —— 后端那份数据可能是几小时前的。 */
-    fun isPast(nowMs: Long): Boolean = startMs < nowMs
+    /**
+     * 结束时刻。
+     *
+     * ⚠️ 这**不是**后端给的结束时间，是「开赛 + 典型时长」估出来的 ——
+     * 后端对足球/棒球/篮球根本不给结束时间（那些项目的结束时间本来也不确定）。
+     */
+    val endMs: Long get() = startMs + durationMinutes * 60_000L
+
+    /** 这场现在处于哪个阶段。用当前时刻算，不用后端下发（理由见 [EventStatus]）。 */
+    fun statusAt(nowMs: Long): EventStatus = when {
+        nowMs < startMs -> EventStatus.UPCOMING
+        nowMs < endMs -> EventStatus.LIVE
+        else -> EventStatus.FINISHED
+    }
 }
 
 /**
@@ -113,9 +159,12 @@ data class Card(
      *
      * 用下一场而不是第一场，是因为一个比赛周末横跨三天 —— 周日看的时候，
      * 显示周五的 FP1 时间没有任何意义。
+     *
+     * 全部打完的卡片没有「下一场」，那时它退化成**最后一场的开赛时刻** ——
+     * 只用来排序，不显示。右侧那时显示的是 [result]。
      */
     val nextStartMs: Long,
-    /** 第二行：赛车项目列出各场次，队伍类显示对手 */
+    /** 第二行：赛车项目列出各场次，队伍类显示对手；全打完时列比分 */
     val detail: String,
     /**
      * 图标没上传时显示的字母块标记，如「F1」「GP」「皇马」。
@@ -123,6 +172,20 @@ data class Card(
      * 图标是用户在 App 里自己传的（见 [LogoStore]），传了就用图，没传用这个。
      */
     val mark: String,
+    /**
+     * 这张卡现在处于哪个阶段。由组内所有 [Event] 的状态推出来：
+     * 有进行中的就是进行中，否则有未开始的就是未开始，否则全打完了。
+     *
+     * 已结束的卡片会被**置顶**（见 [CalendarParser.buildCards]），
+     * 并且换一套底色（见 WidgetService）。
+     */
+    val status: EventStatus,
+    /**
+     * 卡片右侧在 [status] 为 FINISHED 时显示的东西：
+     * 单场是比分（`7-3`），系列赛是战绩（`2 胜 2 负`），赛车是冠军代号（`ANT`）。
+     * 没打完就是 null —— 那时右侧显示时间或「进行中」。
+     */
+    val result: String?,
 )
 
 /** 某个数据源这次的抓取结果，App 的「数据源状态」直接显示这个。 */
@@ -174,17 +237,23 @@ data class CalendarData(
 
             val arr = JSONArray()
             data.events.forEach { e ->
-                arr.put(
-                    JSONObject()
-                        .put("id", e.id)
-                        .put("cat", e.cat.key)
-                        .put("title", e.title)
-                        .put("short", e.short)
-                        .put("start", e.startMs)
-                        .put("rank", e.rank)
-                        .put("group", e.group)
-                        .put("groupName", e.groupName)
-                )
+                val o = JSONObject()
+                    .put("id", e.id)
+                    .put("cat", e.cat.key)
+                    .put("title", e.title)
+                    .put("short", e.short)
+                    .put("start", e.startMs)
+                    // 存的是「典型时长」，不是结束时刻 —— 结束时刻由它推出来
+                    .put("dur", e.durationMinutes)
+                    .put("rank", e.rank)
+                    .put("group", e.group)
+                    .put("groupName", e.groupName)
+                // 没打完的比赛这两项为空，就不写进去。
+                // （org.json 的 put(key, null) 本来也会把键删掉，效果一样，
+                //   但显式判空读起来更清楚：这两个字段本来就是「可能没有」的。）
+                e.result?.let { o.put("result", it) }
+                e.win?.let { o.put("win", it) }
+                arr.put(o)
             }
             root.put("events", arr)
 
@@ -224,11 +293,19 @@ data class CalendarData(
                         title = o.optString("title"),
                         short = o.optString("short"),
                         startMs = o.optLong("start"),
+                        // 新字段，升级 App 时本地还存着老缓存。缺了给 0 ——
+                        // statusAt 会退化成「一开赛就算结束」，显示不准但不会崩，
+                        // 而且下一次刷新就会被覆盖掉
+                        durationMinutes = o.optInt("dur", 0),
                         rank = o.optInt("rank", 1),
                         // 老缓存里没有这两个字段，兜底用 id / 空串，
                         // 这样升级 App 时旧缓存不会让整份数据解析失败
                         group = o.optString("group").ifBlank { o.optString("id") },
                         groupName = o.optString("groupName"),
+                        // 没打完时这两项不存在，optString 会给空串 —— 统一归一成 null，
+                        // 留着空串的话上层「result != null」的判断就永远成立了
+                        result = o.optString("result").ifBlank { null },
+                        win = if (o.isNull("win")) null else o.optBoolean("win"),
                     )
                 }
 
