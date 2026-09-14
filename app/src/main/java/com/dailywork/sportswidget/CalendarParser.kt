@@ -96,7 +96,9 @@ object CalendarParser {
      * 归并出小组件要显示的卡片。
      *
      * 一个 group 一张卡：F1 西班牙站的 FP1/FP2/排位/正赛是一张卡（标题「F1 · 西班牙站」，
-     * 第二行列各场次），而不是四张各说各话的卡。队伍类一场比赛就是一张卡。
+     * 第二行列各场次），而不是四张各说各话的卡。棒球同理 —— 一个系列赛是一张卡
+     * （后端按系列赛分组，见 tools/fetch_calendar.py 的 fetch_mlb）。
+     * 其余队伍类都是一场比赛一张卡。
      *
      * **已经全部打完的卡片直接丢掉** —— 信息流里没必要给过去的事留位置，
      * 留着只会把真正要看的挤下去。
@@ -129,14 +131,25 @@ object CalendarParser {
     /**
      * 卡片第二行。
      *
-     * 队伍类只有一场，直接写对手（「vs 巴列卡」）；
+     * 队伍类写对手（「vs 巴列卡」）；
      * 赛车项目把各场次按时间串起来（「FP1 · FP2 · 排位 · 正赛」）。
      */
     private fun buildDetail(events: List<Event>): String {
-        if (events.size == 1) {
-            val only = events.first()
-            return if (only.cat.isTeamSport) "vs ${only.short}" else only.short
+        val first = events.first()
+
+        // 队伍类一个 group 要么是一场比赛，要么是棒球的一个系列赛
+        // （3~4 连战共用一张卡，原因见 tools/fetch_calendar.py 的 fetch_mlb）。
+        //
+        // 多场时**不能**按下面赛车项目那样把 short 串起来 —— 四个「红人」
+        // 串成「红人 · 红人 · 红人 · 红人」没有任何信息量。
+        // 对手只在开头写一次，多出来的信息是**场次数**：
+        // 看到「vs 红人 · 4 连战」就知道这周还有四场。
+        if (first.cat.isTeamSport) {
+            return "vs ${first.short}" +
+                if (events.size > 1) " · ${events.size} 连战" else ""
         }
+
+        if (events.size == 1) return first.short
 
         val sorted = events.sortedBy { it.startMs }
         // 去重：MotoGP 一个周末有 Q1/Q2 两节排位，都叫「排位」，

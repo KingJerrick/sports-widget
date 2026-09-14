@@ -9,5 +9,11 @@ captures/
 .cxx
 *.apk
 *.keystore
+# 本地跑抓取脚本用的密钥。**绝不能进仓库** —— 仓库是公开的。
+# 格式见 tools/.env.example，那边只有占位符，可以提交。
+tools/.env
+# 调试时 import 过 fetch_calendar 就会生成，别提交
+__pycache__/
+*.pyc
 # CI 编译时的完整输出（只有 build-error.md 那几行关键的会进仓库）
 build.log

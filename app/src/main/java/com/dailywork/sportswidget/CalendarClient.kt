@@ -20,7 +20,13 @@ object CalendarClient {
     private const val TIMEOUT_CONNECT_MS = 10_000
     private const val TIMEOUT_READ_MS = 15_000
 
-    /** 和 tools/fetch_calendar.py 里的 BROWSER_UA 一个道理：部分 CDN 对没有 UA 的请求直接 403。 */
+    /**
+     * 部分 CDN 对没有 UA 的请求直接 403，所以这几个字节不能省。
+     *
+     * 这里刻意**不伪装成浏览器** —— 后端抓取那边曾经为了绕开 Sofascore 的 TLS 指纹
+     * 风控而假扮 Chrome（那段代码已经删了，因为源换成了注册制的）。
+     * 手机端拉的是自己仓库的公开文件，没有风控可绕，老老实实报上身份反而更合适。
+     */
     private const val UA = "Mozilla/5.0 (Linux; Android 13) sports-widget/1.0"
 
     /**

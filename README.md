@@ -22,16 +22,26 @@
 **顶栏那一排是七天迷你条**：有比赛的日子底下有一层浅浅的底色，今天最重。
 卡片流回答「比什么赛」，这条回答「哪天有比赛」—— 两个不同的问题。
 
-**一个比赛周末合成一张卡**，不是一天一张。F1 西班牙站的 FP1/FP2/FP3/排位/正赛
-是同一张卡，第二行把它们按时间列出来；队伍类一场比赛就是一张卡，第二行是对手。
+**一个「整体」合成一张卡**，不是一天一张。F1 西班牙站的 FP1/FP2/FP3/排位/正赛
+是同一张卡，第二行把它们按时间列出来。
+
+队伍类里**只有棒球要归并**：道奇一周打 6 场，一场一张卡的话 7 天窗口里它一个人
+就占 7 张，把 F1、MotoGP 这些一周只有一场的全挤到列表底下（实测过）。
+所以 MLB 的一个系列赛（同一对手、同一主客场、连着打 3~4 天）并成一张卡 ——
+「一个整体」在这里是系列赛。足球/篮球/CS2/LoL 都是一场一张卡，它们本来就没这么密。
 
 | 标记 | 项目 | 卡片标题 | 第二行 |
 |---|---|---|---|
-| 🔴 `F1` | F1 | `F1 · 西班牙站` | 各场次：`FP1 · FP2 · 排位 · 正赛` |
-| 🟠 `GP` | MotoGP | `MotoGP · 圣马力诺站` | 各场次（Moto2/Moto3 已滤掉） |
-| 🟣 `猎鹰` | CS2 · Team Falcons | `猎鹰 · BLAST Open` | 对手 |
-| 🟢 `皇马` | 足球 · 皇家马德里 | `皇马 · LaLiga` | 对手 |
-| 🔵 `IG` | 英雄联盟 · Invictus Gaming | `IG · LPL 淘汰赛` | 对手 |
+| 🔴 `F1` | F1 | `F1 · 阿塞拜疆站` | 各场次：`FP1 · FP2 · FP3 · 排位 · 正赛` |
+| 🟠 `GP` | MotoGP | `MotoGP · AUT站` | 各场次（Moto2/Moto3 已滤掉） |
+| 🟢 `皇马` | 足球 · 皇家马德里 | `皇马 · 西甲` | `vs 巴萨` |
+| 🔷 `道奇` | 棒球 · 洛杉矶道奇 | `道奇 · @ 红人` | `vs 红人 · 4 连战` |
+| 🟡 `勇士` | 篮球 · 金州勇士 | `勇士 · NBA` | `vs 湖人` |
+| 🟣 `猎鹰` | CS2 · Team Falcons | `猎鹰 · BLAST Premier` | `vs NAVI` |
+| 🔵 `IG` | 英雄联盟 · Invictus Gaming | `IG · LPL 淘汰赛` | `vs AL` |
+
+> 棒球的卡片标题用北美体育的记法：`@ 红人` 是客场，`vs 巨人` 是主场 —— 一眼能看出
+> 这组系列赛是在谁家打的。同一对手在主客场的两组系列赛是**两张卡**，不会并在一起。
 
 卡片左侧的图标**由你自己在 App 里上传**（见下面「四、配置」的第 ④ 段），
 没上传就显示上表里的字母块。
@@ -40,25 +50,95 @@
 
 ## ⚠️ 先读这一节：数据是从哪来的
 
-**五个源全部免注册**，不需要任何 API Key。但代价要说清楚：
+**七个类别，六个源是官方或注册制，只剩一个私有接口。**
 
-| 项目 | 源 | 性质 |
-|---|---|---|
-| F1 | [Jolpica](https://api.jolpi.ca/ergast/f1/2026/races.json?limit=100) | 🟢 Ergast 的社区继任者，结构稳定 |
-| MotoGP | `api.motogp.pulselive.com` | 🔴 **网页私有接口**，无文档无承诺 |
-| CS2 · 猎鹰 | `api.sofascore.com` | 🔴 **网页私有接口** |
-| 足球 · 皇马 | `api.sofascore.com` | 🔴 同上（一个源覆盖两类） |
-| 英雄联盟 · IG | `esports-api.lolesports.com` | 🟡 Riot 官方数据，但用的是网页公开 key，可能轮换 |
+| 项目 | 源 | 性质 | 要 key 吗 |
+|---|---|---|---|
+| F1 | [OpenF1](https://openf1.org) `api.openf1.org` | 🟢 有文档，整年全部场次（含练习赛/排位/冲刺） | 不要 |
+| MotoGP | `api.motogp.pulselive.com` | 🔴 **网页私有接口**，无文档无承诺 | 不要 |
+| 足球 · 皇马 | [football-data.org](https://www.football-data.org) | 🟢 注册制，西甲 + 欧冠都在免费档 | **要** |
+| 棒球 · 道奇 | [MLB Stats API](https://statsapi.mlb.com) `statsapi.mlb.com` | 🟢 **MLB 官方接口**，没有比它更权威的 | 不要 |
+| 篮球 · 勇士 | [balldontlie](https://balldontlie.io) `api.balldontlie.io` | 🟢 注册制，免费档 5 次/分钟 | **要** |
+| CS2 · 猎鹰 | [PandaScore](https://www.pandascore.co) `api.pandascore.co` | 🟢 注册制，免费档 1000 次/小时 | **要** |
+| 英雄联盟 · IG | `esports-api.lolesports.com` | 🟡 Riot 官方数据，但用的是网页公开 key，可能轮换 | 不要 |
 
-**五个源里三个是网页私有接口**，哪天某个源改了结构或者开始封爬虫，那一类就会没数据。这是选「免注册」付出的代价 —— 用注册账号换来的官方 API 会稳得多。
+### 为什么从「全部免注册」改成了「六个注册制」
 
-好消息是这个风险**被架构吸收掉了**：抓取跑在 GitHub Actions 上，源变了只需要改 `tools/fetch_calendar.py` 里对应的那一个函数、手动触发一次 workflow，**手机上的 App 完全不用动**。
+2026 年 9 月，**足球和 CS2 一起挂了**：Sofascore 的网页私有接口对 GitHub Actions 的出口 IP 返回 `403 Forbidden`。同一份代码、同一个 UA，9 月 11 日那次 CI 还是好的，9 月 12 日就全红。在本机（住宅 IP）上同一个请求是 200 —— 这是按 TLS 指纹 / 出口 IP 做的风控。
+
+这正是「用私有接口换免注册」的代价，所以能换的都换了。换来的是**有文档、有承诺、key 走 header** 的接口。
+
+**为什么 MotoGP 没换**：市面上没有能长期用的注册制 MotoGP 接口 —— Sportradar 有 MotoGP v2，但只有 30 天试用、到期断供，正式接入要走企业销售合同；ESPN 不覆盖 MotoGP；TheSportsDB 免费档搜不到。所以它继续留在 Pulselive，在下面单独标成已知风险源。
+
+好消息是**这个风险被架构吸收掉了**：抓取跑在 GitHub Actions 上，源变了只需要改 `tools/fetch_calendar.py` 里对应的那一个函数、手动触发一次 workflow，**手机上的 App 完全不用动**。
+
+### ⚠️ 已知风险源：MotoGP
+
+`api.motogp.pulselive.com` 是 motogp.com 自己前端在调的接口，无文档无承诺。它在 2026-09 那轮风控里没被封，但那只是运气。
+
+**它挂掉的表现**：主界面「数据源状态」里 MotoGP 那行变红，`sources.motogp.error` 写着 HTTP 状态码或解析错误。
+
+**挂掉怎么办**，按代价从低到高：
+1. 到 [OpenF1 的 issue 区](https://github.com/br-g/openf1/issues) / [jolpi.ca](https://api.jolpi.ca) 看看有没有人做 MotoGP 的社区镜像 —— F1 当年从 Ergast 转 Jolpica 就是这么过来的
+2. 接口改版了：对着 `tools/fetch_calendar.py` 里 `fetch_motogp` 上面的注释核字段（那里记着两个已经踩过的坑）
+3. 实在没有源了：`data/config.json` 里把 `motogp` 的 `enabled` 改成 `false`，其余六个类别不受影响
+
+### 已排除的源（别再试了）
+
+都是实测过的，记在这里免得以后重复踩：
+
+| 源 | 结果 |
+|---|---|
+| `stats.nba.com` | 带全套请求头返回 **200，但响应体是 NBA.com 的首页 HTML** —— 反爬墙。看状态码会以为成功了 |
+| `cdn.nba.com` | 403（住宅 IP 也 403） |
+| `data.nba.net` | 证书错误，已废弃 |
+| ESPN `site.api.espn.com` | 能用（实测能拿勇士整季 80 场），但它是**无文档的私有接口**，和 Sofascore 同性质，只是暂时没被封 |
+| TheSportsDB 免费档 | 几乎是空的：`all_leagues` 只返回 5 条，搜 MotoGP 返回 null |
+| Sportradar MotoGP v2 | 30 天试用后断供，正式接入需联系销售，企业定价 |
+| api-sports.io 的 F1 | 只给正赛，一个周末的练习赛/排位全没有 |
+| Jolpica（原来的 F1 源） | 能用且稳定，但 OpenF1 的场次字段更全，换掉了 |
+
+### 配置 API Key（三个注册制源要用）
+
+**Key 只以 GitHub Actions Secret 的形式存在，仓库里一个都不留。** 手机端更是完全碰不到 key —— 它下载的还是那一个公开的 `calendar.json`，所以**换 key、换源都不用重装 APK**。
+
+**在 GitHub 上配**（CI 用的就是这条路径）：
+
+1. 去三家注册，拿到 key：
+
+   | 变量名 | 去哪注册 | 免费档 |
+   |---|---|---|
+   | `FOOTBALL_DATA_TOKEN` | [football-data.org](https://www.football-data.org/client/register) | 10 次/分钟 |
+   | `PANDASCORE_TOKEN` | [app.pandascore.co](https://app.pandascore.co/signup) | 1000 次/小时 |
+   | `BALLDONTLIE_KEY` | [app.balldontlie.io](https://app.balldontlie.io) | 5 次/分钟 |
+
+   本脚本每 6 小时才跑一次、每个源只发 1~2 个请求，所以免费档的余量绰绰有余。
+
+2. 仓库 → **Settings → Secrets and variables → Actions → New repository secret**，名字就用上表那三个，值粘进去。
+
+3. 去 **Actions → Update calendar → Run workflow** 手动跑一次，日志开头会打印哪个配了、哪个没配（**只报配没配，不回显值**）。
+
+**在本机跑**：把 `tools/.env.example` 复制成 `tools/.env` 填进去。`tools/.env` 已经在 `.gitignore` 里 —— **那个文件绝不能提交**。
+
+没配 key 不会让整个流程挂掉：缺哪个 key，对应的那一类失败并在「数据源状态」里写明原因，其余几个免 key 的源（F1 / MotoGP / 棒球 / 英雄联盟）照常出数据。
+
+> ⚠️ 两家的 Authorization 头格式不一样，写反了都会 401 而且报错信息看不出区别：
+> **PandaScore 要 `Bearer ` 前缀，balldontlie 不要。**
+
+### 为什么不会把 key 泄漏出去
+
+四条规矩，改 `tools/fetch_calendar.py` 时别破坏：
+
+1. **key 一律走请求 header，绝不拼进 URL。** 这条最要紧 —— 一旦进 URL，key 就会顺着报错信息被写进 `data/calendar.json` 的 `sources.<cat>.error`，而那个文件是要提交到公开仓库的，等于**永久留在 git 历史里**（删掉也还在）。
+2. **脚本在写文件之前会扫一遍产物**（`assert_no_secrets`），发现任何密钥明文就直接中止、不写文件。这一条是机器守的，不靠人记得。
+3. 异常消息里不带请求头。公开仓库的 Actions 日志任何人都能看。
+4. `tools/.env` 在 `.gitignore` 里。
 
 ### 抓取是云端做的，手机只请求一个文件
 
 ```
 GitHub Actions（每 6 小时 + 手动触发）
-  └─ tools/fetch_calendar.py ──抓──▶ 五个源
+  └─ tools/fetch_calendar.py ──抓──▶ 七个源（三个要 key，从 Secrets 注入）
         └─ 归一化 → data/calendar.json ──commit──▶ 仓库
                                                       │
 手机 ──GET──▶ ① 自定义地址（如果填了）
@@ -158,7 +238,7 @@ gradle wrapper --gradle-version 8.7 && ./gradlew assembleDebug   # 方式 2：�
 打开「赛事日历」App，从上到下四段：
 
 - **① 未来七天赛程** —— 按天分组的完整列表，每场都平铺开（小组件那边会把一个比赛周末合成一张卡）
-- **② 颜色图例** —— 五个颜色分别对应什么，以及当前用的是图标还是字母块
+- **② 颜色图例** —— 七个颜色分别对应什么，以及当前用的是图标还是字母块
 - **③ 数据源状态** —— 每个源这次抓到没有、抓了多少场、失败原因。哪一类突然不显示了，先看这里
 - **④ 卡片图标** —— 给每个分组传一张图（见下）
 - **⑤ 设置** —— 数据地址和刷新间隔，加一个「测试连接」自检
@@ -247,7 +327,9 @@ sports-widget/
 │   ├── build-apk.yml            # 打包 APK（失败时把错误写进 build-error.md）
 │   └── update-calendar.yml      # 每 6 小时抓赛程并提交
 ├── build-error.md               # 只在构建失败时出现，记录当时的编译错误
-├── tools/fetch_calendar.py      # 聚合脚本（只用标准库 + curl）
+├── tools/
+│   ├── fetch_calendar.py        # 聚合脚本（只用标准库）
+│   └── .env.example             # 本地跑要填的 key，复制成 .env（.env 已 gitignore）
 ├── data/
 │   ├── config.json              # 追哪些队伍 —— 改这个换队，不用碰 App
 │   └── calendar.json            # 抓取产物
@@ -272,13 +354,25 @@ sports-widget/
 
 ### 改关注对象：`data/config.json`
 
-想换队伍（比如把皇马换成巴萨）**不用碰代码、不用重装 App**：
+**换队伍不用碰代码、不用重装 App**（前提是新队伍在同一个源里 —— 换源就要改 `fetch_xxx` 函数了）：
 
 1. 在 GitHub 网页上编辑 `data/config.json`
-2. 改 `football.sofascoreId`（用 `https://api.sofascore.com/api/v1/search/all?q=Barcelona` 查 id，免注册）
-3. 等下一次定时抓取，或者去 Actions 手动触发 `update-calendar`
+2. 改对应的 id，去哪查写在文件开头的 `_comment` 里：
 
-> ⚠️ 猎鹰有两个 id：`409766` 是 **CS2** 分队，`498383` 是 **Dota 2** 分队。填错会拿回一堆 Dota 比赛。
+   | 类别 | 改哪个字段 | 去哪查 |
+   |---|---|---|
+   | 足球 | `footballDataTeamId` | `api.football-data.org/v4/competitions/PD/teams` |
+   | 棒球 | `mlbTeamId` | `statsapi.mlb.com/api/v1/teams?sportId=1` |
+   | 篮球 | `balldontlieTeamId` | balldontlie 的 `/v1/teams` |
+   | CS2 | `pandascoreTeamId` | `api.pandascore.co/csgo/teams?search[name]=队伍名`（留空则按队名匹配，也能用） |
+   | LoL | `leagueId` | 文件开头的 `_comment` 里列了 LPL/LCK/LEC/LCS/MSI/Worlds |
+
+3. 顺手改 `teamLabel`（卡片标题和 chip 上用）和 `mark`（没传图标时显示的字母块，**最多 3 个汉字**）
+4. 换足球/棒球/篮球的对手时，还要补 `opponentCn` 里的中文简称 —— 查不到会直接显示三字母代号，不会出错，只是不好看
+
+5. 等下一次定时抓取，或者去 Actions 手动触发 `update-calendar`
+
+> ⚠️ 对手中文简称**上限 3 个汉字**。chip 宽度是按 7dp 字号下 6 个宽度单位算的，超了后端会截断并打日志（不是静默丢弃，去 workflow 日志里能看到）。
 
 ### 改配色
 
@@ -302,7 +396,9 @@ sports-widget/
 
 **深色模式用 `values-night` 而不是在代码里判断。** 代价是切换后要等桌面重新加载布局才变色。
 
-**一个比赛周末合成一张卡，不是一天一张。** F1 西班牙站的 FP1/FP2/FP3/排位/正赛是**一张**卡（标题「F1 · 西班牙站」，第二行列各场次），而不是五张各说各话的卡 —— 一个周末本来就是一回事，拆开会把列表撑得很长、还看不出它们的关系。队伍类没有这个层级，一场比赛一张卡。分组在后端做（`tools/fetch_calendar.py` 的 `group` 字段）。
+**一个「整体」合成一张卡，不是一天一张。** F1 西班牙站的 FP1/FP2/FP3/排位/正赛是**一张**卡（标题「F1 · 西班牙站」，第二行列各场次），而不是五张各说各话的卡 —— 一个周末本来就是一回事，拆开会把列表撑得很长、还看不出它们的关系。分组在后端做（`tools/fetch_calendar.py` 的 `group` 字段）。
+
+**棒球的「整体」是系列赛，不是比赛。** 这是同一个原则的另一个例子：道奇一周 6 场，一场一张卡的话 7 天窗口里能占 7 张，把一整周只有一场的 F1/MotoGP 全挤下去。所以 MLB 按系列赛分组，判据是 `seriesGameNumber == 1`（不能用「对手变了就换组」—— 同一对手在主客场的两组不该并起来）。第二行因此多一个场次数：`vs 红人 · 4 连战`。注意**卡片第二行对队伍类只写一次对手**，不会像赛车项目那样把 short 串起来（四个「红人」串成一行没有信息量）。
 
 **卡片第二行放不下时会按重要性取舍，不是简单截断。** MotoGP 一个周末有 FP1/练习/FP2/Q1/Q2/冲刺/热身/正赛八节，全列出来一行放不下。规则是：先去重（Q1、Q2 都叫「排位」），还超就保正赛和排位、让练习赛让位（正赛 3 > 排位 2 > 练习 1）。直接截断的话会把最重要的那几节切掉，而且不报错、不崩，只是看不见。
 
@@ -312,12 +408,24 @@ sports-widget/
 
 上传的图会先缩到 96px 再存。**这一步不能省**：`setImageViewBitmap` 会把整张位图塞进 Binder 事务（全进程共享约 1MB），用户随手挑一张几 MB 的照片，解码后好几 MB，直接就是 `TransactionTooLargeException` —— 表现是小组件不更新，而且报错信息完全指不到这里。
 
-**Sofascore 单独走 curl 子进程。** 它对客户端 **TLS 指纹**做风控，不看 UA 也不看 IP。实测（同一台机器、同一时刻、同一个 URL）：`curl` 返回 200、`curl --http1.1` 返回 200、`curl -A "Python-urllib/3.12"` 也返回 200，但 Python 的 urllib 换什么请求头都是 403。所以只能让这一个源走 curl。
+**多端点兜底链 + 三级降级，是为了「源挂了」这件事。** 2026-09 那轮 Sofascore 风控印证了这个设计是对的：两个源同时挂掉，但因为是**每个源各自 try/catch**，F1 / MotoGP / LoL 一点没受影响，`sources` 里另外两条记着错误原因、App 的「数据源状态」直接显示出来。所以加新源时也要守这个约定：**一个源失败绝不能带崩整个文件**。
+
+**每个源的重试是刻意的。** 这些站点都在 CDN 后面，实测会偶发 TLS 握手超时（同一台机器同一个 URL，上一次成功、这一次超时）。不重试的话，一次网络抖动就会让某一类赛事整天没有数据 —— 而 App 端看起来只是「今天没比赛」，根本看不出是抓取失败。
+
+**为什么把 key 全放在 header 而不是 URL。** 有些服务商习惯用 `?api_key=xxx`，但那在本项目里是个陷阱：抓取失败时错误消息会被写进**公开的** `data/calendar.json`，URL 里的 key 就这么永久留在 git 历史里了。所以三个注册制源全走 header（`X-Auth-Token` / `Authorization`），并且在写文件前还会再扫一遍产物。
 
 ---
 
 ## 参考
 
-- [Jolpica F1 API](https://api.jolpi.ca/ergast/)（Ergast 的社区继任者）
-- [Sofascore](https://www.sofascore.com/)（接口为站点前端私有 API，无公开文档）
+各家的接口文档：
+
+- [OpenF1](https://openf1.org/docs/) —— F1，免 key，免费档无次数限制
+- [football-data.org](https://www.football-data.org/documentation/quickstart) —— 足球，注册制
+- [MLB Stats API](https://github.com/toddrob99/MLB-StatsAPI/wiki) —— 棒球，MLB 官方，免 key（社区整理的端点说明）
+- [balldontlie](https://docs.balldontlie.io/) —— NBA，注册制
+- [PandaScore](https://developers.pandascore.co/docs/introduction) —— 电竞（CS2 走 `/csgo/` 路由），注册制
 - [LoL Esports](https://lolesports.com/schedule)
+- [MotoGP Pulselive](https://api.motogp.pulselive.com/motogp/v1/events?seasonYear=2026&isFinished=false) —— ⚠️ 站点前端私有 API，无公开文档，见上面的「已知风险源」
+
+历史上用过、已经换掉的：[Jolpica](https://api.jolpi.ca/ergast/)（F1，换成了 OpenF1）、[Sofascore](https://www.sofascore.com/)（足球 + CS2，2026-09 对 CI 出口 IP 封了 403）。

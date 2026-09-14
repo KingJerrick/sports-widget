@@ -1,6 +1,6 @@
 name: Update calendar
 
-# 定时把五个源的赛程抓成一个 data/calendar.json 提交回仓库，手机端只请求这一个文件。
+# 定时把七个源的赛程抓成一个 data/calendar.json 提交回仓库，手机端只请求这一个文件。
 #
 # cron 为什么是 17 分而不是 0 分：GitHub 的定时任务在高负载时会被推迟甚至跳过，
 # 而整点（0 分）正是全球任务最挤的时刻。错开十几分钟能明显减少「这次没跑」。
@@ -30,8 +30,33 @@ jobs:
         with:
           python-version: '3.12'
 
+      # 三个注册制源的密钥。**只在这里出现，值永远不落盘、不进仓库。**
+      # 仓库是公开的 → 这个 workflow 的日志任何人都能看，所以脚本里也严格
+      # 不打密钥、不把密钥拼进 URL（拼进去会顺着报错写进公开的 calendar.json）。
+      # 详见 tools/fetch_calendar.py 文件头那三条硬规矩。
+      #
+      # 没配也不影响整体：缺哪个 key，对应的那一类失败，
+      # 其余几个免 key 的源（f1 / motogp / mlb / lol）照常出数据。
+      - name: Check secrets
+        env:
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+          PANDASCORE_TOKEN: ${{ secrets.PANDASCORE_TOKEN }}
+          BALLDONTLIE_KEY: ${{ secrets.BALLDONTLIE_KEY }}
+        run: |
+          for n in FOOTBALL_DATA_TOKEN PANDASCORE_TOKEN BALLDONTLIE_KEY; do
+            if [ -n "${!n}" ]; then
+              echo "::notice::$n 已配置"
+            else
+              echo "::warning::$n 未配置 —— 对应的源这次会失败，其余源不受影响"
+            fi
+          done
+
       # 脚本只用标准库（外加系统自带的 curl），所以没有 pip install 这一步
       - name: Fetch calendar
+        env:
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+          PANDASCORE_TOKEN: ${{ secrets.PANDASCORE_TOKEN }}
+          BALLDONTLIE_KEY: ${{ secrets.BALLDONTLIE_KEY }}
         run: python tools/fetch_calendar.py
 
       - name: Commit if changed
@@ -55,3 +80,6 @@ jobs:
       #    它每 6 小时变一次，但**不会**触发 APK 重新打包 —— build-apk.yml 里
       #    用 paths-ignore 把这条路排除了。兜底快照陈旧几天无所谓，它只在
       #    「没网 + 没本地缓存」时才会被用到，为此每 6 小时重打一次 APK 不值。
+      #
+      # 3. 脚本在写文件之前会自己扫一遍产物里有没有密钥明文（assert_no_secrets），
+      #    命中就整个失败、不写文件。这一步比「相信没人会写错」可靠。

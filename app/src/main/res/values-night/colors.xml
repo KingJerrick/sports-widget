@@ -31,7 +31,8 @@
     <color name="accent_text">#FFCBD5E1</color>
     <color name="accent_amber">#FFF0B23C</color>
 
-    <!-- ── 五个类别色（chip 填充色）+ 近黑字的对比度 ───────────── -->
+    <!-- ── 七个类别色（chip 填充色）+ 近黑字的对比度 ───────────── -->
+    <!-- ⚠️ 和 values/colors.xml 一样：下面的数字是实算的，加新色请自己算准 -->
     <!-- F1 · 红 8.1:1 -->
     <color name="cat_f1">#FFFF8A8A</color>
     <!-- MotoGP · 橙 9.4:1 -->
@@ -40,10 +41,15 @@
     <color name="cat_cs2">#FFB49CFB</color>
     <!-- 足球 · 草皮绿 10.1:1 -->
     <color name="cat_football">#FF4ADE9B</color>
+    <!-- 棒球 · 道奇青蓝 9.5:1。同色相提亮，和上面四个同一档亮度 -->
+    <color name="cat_mlb">#FF40CAEF</color>
+    <!-- 篮球 · 勇士暗金 9.5:1。深色下终于能回到真正的金色了 ——
+         浅色模式那个 #A16207 是为了压住白字才变棕的 -->
+    <color name="cat_nba">#FFF4AD46</color>
     <!-- LoL · 蓝 8.5:1 -->
     <color name="cat_lol">#FF7CB8FF</color>
 
-    <!-- chip 文字：深色模式下五个色块都是亮的，统一用近黑字 -->
+    <!-- chip 文字：深色模式下七个色块都是亮的，统一用近黑字 -->
     <color name="on_pill">#FF10151F</color>
     <color name="cat_more">#FF94A3B8</color>
 

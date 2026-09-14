@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-把五个赛事源抓成一个 calendar.json。
+把七个赛事源抓成一个 calendar.json。
 
 ── 为什么抓取放在云端而不是手机里 ────────────────────────────────────────
 手机只发一个 HTTP GET 拿这一个文件，好处有三条：
@@ -8,23 +8,53 @@
   2. 抓取只发生在 GitHub 的服务器上，你的手机 IP 不会因为高频轮询被赛事站点风控
   3. 数据有 git 历史，出问题能回溯
 
-第 1 条最要紧：五个源里有三个是**网页私有接口**（MotoGP、Sofascore、lolesports），
-无文档无承诺，响应结构随时可能变。放在这里只需要改一个函数。
+第 1 条最要紧：源里有几个是**网页私有接口**，无文档无承诺，结构随时可能变。
+放在这里只需要改一个函数。
+
+── 数据源的来龙去脉 ────────────────────────────────────────────────────
+2026-09 之前，足球（皇马）和 CS2（猎鹰）走的是 Sofascore 的网页私有接口。
+它对本机住宅 IP 正常，但对 GitHub Actions 的出口 IP **返回 403** ——
+同一份代码、同一个 UA，9 月 11 日还能跑，9 月 12 日就全红了。
+这是按 TLS 指纹 / 出口 IP 做的风控，也正是「用私有接口换免注册」要付的代价。
+
+于是能换注册制的全换了，换来的是**有文档、有承诺、key 走 header** 的接口：
+
+    f1        OpenF1              api.openf1.org           免 key
+    motogp    Pulselive           api.motogp.pulselive.com ⚠️ 仍是私有接口
+    football  football-data.org   api.football-data.org    注册制 X-Auth-Token
+    mlb       MLB Stats API       statsapi.mlb.com         免 key（官方）
+    nba       balldontlie         api.balldontlie.io       注册制 Authorization
+    cs2       PandaScore          api.pandascore.co        注册制 Bearer
+    lol       lolesports          esports-api.lolesports.com  Riot 官方数据
+
+**MotoGP 没有能长期用的注册制接口**：Sportradar 有 MotoGP v2 但是 30 天试用、
+到期断供，正式接入要走企业销售合同；ESPN 不覆盖 MotoGP；TheSportsDB 免费档
+几乎是空的。所以它继续留在 Pulselive —— 它恰恰是这轮风控里活下来的那个，
+但这不代表它可靠，换源时优先换它。
+
+── 密钥怎么进这个脚本 ──────────────────────────────────────────────────
+key **只以环境变量形式存在**，绝不写进这个文件、也绝不进仓库：
+
+  · CI：GitHub Actions Secret → workflow 的 env: → os.environ
+  · 本地：tools/.env（已在 .gitignore 里），跑之前自己填
+
+三条硬规矩，改代码时别破坏：
+
+  1. **key 一律走请求 header，绝不拼进 URL。** 一旦进 URL，key 就会顺着
+     RuntimeError 的消息被写进 data/calendar.json 的 sources.<cat>.error ——
+     而那个文件是要提交到公开仓库的，等于永久留在 git 历史里。
+     公开仓库的 Actions 日志也是任何人都能看的，所以异常消息里也不能有 key。
+  2. **落盘前用 assert_no_secrets 扫一遍产物**（见 main），命中就直接中止。
+  3. 打印「配没配」可以，打印值不行。
 
 ── 只用标准库 ──────────────────────────────────────────────────────────
-urllib / json / datetime，不装 requests —— workflow 里省掉 pip install 一步。
-唯一的例外是 Sofascore：它对客户端 TLS 指纹做风控，Python 的 ssl 栈会吃 403，
-只能让那一个源走 curl 子进程（curl 在 ubuntu-latest 和 Windows 上都自带）。
-详见 http_get_curl 上面的实测记录。
-
-── 每个源独立失败 ──────────────────────────────────────────────────────
-fetch_xxx() 各自 try/catch，一个源挂掉只影响它自己那一类，其余照常出数据，
-失败信息写进 sources.<cat>.error，App 的「数据源状态」直接显示。
+urllib / json / datetime / argparse，不装 requests —— workflow 里省掉 pip install
+一步。tools/.env 也是手写的十几行解析，不为它引入 python-dotenv。
 """
 
+import argparse
 import json
-import shutil
-import subprocess
+import os
 import sys
 import time
 import urllib.error
@@ -37,6 +67,7 @@ CONFIG_PATH = ROOT / "data" / "config.json"
 OUT_PATH = ROOT / "data" / "calendar.json"
 # 同时也往 APK 里塞一份快照，作为「没网 + 没缓存」时的最后兜底
 ASSET_PATH = ROOT / "app" / "src" / "main" / "assets" / "calendar.json"
+ENV_PATH = ROOT / "tools" / ".env"
 
 # 一次发布这么多天的赛程，App 自己从中截未来 7 天。
 # 放这么宽是为了容错：即使 Actions 定时挂了一周，小组件也不会突然空掉 ——
@@ -46,7 +77,14 @@ WINDOW_DAYS = 60
 # 部分 CDN / 站点对没有 UA 的请求直接 403
 UA = "sports-widget/1.0 (+https://github.com/KingJerrick/sports-widget)"
 
-# lolesports 网页自己用的公开 key。Riot 随时可能轮换，轮换了改这一行即可。
+# lolesports 网页自己用的公开 key。
+#
+# ⚠️ 这**不是**本项目自己的凭证：任何打开 lolesports.com 开发者工具的人都能看到它，
+# 它只是 Riot 网页客户端的标识。所以没把它收进 Secrets —— 收进去只是把
+# 「轮换时改代码提交」换成「轮换时改 GitHub 设置」，安全性并没有变化，
+# 却会让 fork 了仓库的人跑不起来。
+#
+# 真正的风险是 Riot 轮换它：轮换了改这一行即可，不用动 App。
 LOL_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
 
 # ── 关于卡片图标 ──────────────────────────────────────────────────────────
@@ -67,15 +105,103 @@ LOL_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
 SHORT_WIDTH_LIMIT = 6
 
 
+# ══ 密钥 ══════════════════════════════════════════════════════════════════
+
+# 三个注册制源的 key。改这里要同步改 .github/workflows/update-calendar.yml 的 env 段。
+SECRET_KEYS = ("FOOTBALL_DATA_TOKEN", "PANDASCORE_TOKEN", "BALLDONTLIE_KEY")
+
+
+def load_secrets() -> dict:
+    """
+    读密钥。**环境变量优先**，缺失时退回 tools/.env。
+
+    本地跑的时候把 key 写进 tools/.env（已 gitignore），CI 里由 workflow 的
+    env: 从 GitHub Secrets 注入。两条路都走同一个字典，下面的代码不用区分。
+
+    环境变量优先是为了 CI：万一有人在 runner 上误放了一个 .env，
+    也不该盖过 Secrets。
+    """
+    out = {k: (os.environ.get(k) or "").strip() for k in SECRET_KEYS}
+
+    if ENV_PATH.exists():
+        for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            # 跳过空行和 # 注释；没有 = 的行也不认
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            name = name.strip()
+            # 值两边的引号是给人看的，解析时去掉
+            value = value.strip().strip('"').strip("'")
+            if name in out and not out[name]:
+                out[name] = value
+
+    return out
+
+
+SECRETS = load_secrets()
+
+
+def assert_no_secrets(text: str, where: str) -> None:
+    """
+    落盘前的最后一道闸：产物里出现任何密钥明文就中止。
+
+    为什么需要这个 —— 上面那三条规矩靠人守，这一条靠机器守。
+    产物是要 commit 到**公开仓库**的，一次疏忽就是永久泄漏（git 历史删不掉）。
+    宁可整个 workflow 失败，也不能把 key 推出去。
+    """
+    for name, value in SECRETS.items():
+        if value and value in text:
+            raise SystemExit(
+                f"\n⛔ 已中止：{name} 的明文出现在 {where} 里。\n"
+                f"   这个文件会被提交到公开仓库，继续写下去等于把密钥发出去。\n"
+                f"   检查一下是不是把 key 拼进了 URL 或日志。\n"
+            )
+
+
+def report_secrets() -> None:
+    """
+    只报「配没配」，**绝不回显值**。
+
+    少了 key 的源会各自失败，但失败信息藏在 sources.<cat>.error 里、
+    要打开 App 才看得到。这里先打一行，日志里一眼就能看出是「没配」还是「接口挂了」。
+    """
+    for name in SECRET_KEYS:
+        print(f"  {name:<20} {'已配置' if SECRETS[name] else '未配置'}")
+
+
+# ══ 调试开关 ══════════════════════════════════════════════════════════════
+#
+# 三个注册制源的响应形状是照官方文档写的，第一次拿到 key 时必须核对一遍
+# 字段名有没有变。--raw 把上游原始响应打出来就是干这个的。
+#
+# 用全局变量而不是往每个 fetch_xxx 加参数：SOURCES 注册表要求它们的签名统一，
+# 加个 raw 参数会让七个函数全都得跟着改，而它只是个调试开关。
+
+RAW = False
+RAW_LIMIT = 6000
+
+
+def dump_raw(obj, tag: str) -> None:
+    """--raw 时把上游响应打出来。截断是故意的 —— 整份响应几万字，刷屏了看不见重点。"""
+    if not RAW:
+        return
+    text = json.dumps(obj, ensure_ascii=False)
+    print(f"\n──── 原始响应 [{tag}] 共 {len(text)} 字符 ────")
+    print(text[:RAW_LIMIT] + ("…（已截断）" if len(text) > RAW_LIMIT else ""))
+    print("──── 结束 ────\n")
+
+
 # ══ 工具 ══════════════════════════════════════════════════════════════════
 
 def http_get(url: str, headers: dict | None = None, attempts: int = 3) -> str:
     """
-    大部分源用这个。少数对 TLS 指纹敏感的源走 [http_get_curl]。
-
-    带重试是因为这几个源都在 Cloudflare 后面，实测会偶发 TLS 握手超时
+    所有源都走这个。带重试是因为这些站点实测会偶发 TLS 握手超时
     （同一台机器同一个 URL，上一次成功、这一次超时）。重试两次基本就稳了 ——
     不然一次网络抖动就会让某一类赛事整天没有数据，而 App 端看起来只是「今天没比赛」。
+
+    ⚠️ headers 里会带密钥。异常消息只带 URL（密钥从不进 URL，见文件头），
+    所以 last 里的异常不会泄漏 key —— 改这个函数时别把 headers 也塞进消息里。
     """
     last: Exception | None = None
     for i in range(attempts):
@@ -91,56 +217,15 @@ def http_get(url: str, headers: dict | None = None, attempts: int = 3) -> str:
     raise last  # type: ignore[misc]
 
 
-# Sofascore 对**客户端 TLS 指纹**做风控，而不是看 UA 或 IP。
-# 实测（同一台机器、同一时刻、同一个 URL）：
-#     curl                                 -> 200
-#     curl --http1.1                       -> 200
-#     curl -A "Python-urllib/3.12"         -> 200   ← 说明不是看 UA
-#     Python urllib（换浏览器 UA、补齐全部请求头）-> 403 Varnish
-# 所以只能让这一个源走 curl 子进程。curl 在 ubuntu-latest 和 Windows 上都自带。
-BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-
-
-def curl_request(url: str, headers: dict | None = None) -> tuple[int, str]:
-    """
-    返回 (HTTP 状态码, 响应体)。
-
-    刻意**不加 --fail**：状态码要自己判断。因为对 Sofascore 来说 404 是正常业务状态
-    （这个队未来没有比赛），不是错误 —— 混在一起就分不出「没比赛」和「抓取失败」了。
-    """
-    exe = shutil.which("curl")
-    if not exe:
-        raise RuntimeError("系统里找不到 curl（这个源需要它绕开 TLS 指纹风控）")
-
-    # -w 把状态码追加到响应体后面，用换行分隔，回来再切开
-    # --retry 交给 curl 自己重试网络层错误（连接超时、TLS 握手失败等），
-    # 不重试 HTTP 状态码 —— 那些是业务状态，见下面 404 的处理
-    cmd = [exe, "-sS", "--max-time", "25", "--retry", "2", "--retry-delay", "2",
-           "-w", "\n%{http_code}", "-A", BROWSER_UA]
-    for k, v in (headers or {}).items():
-        cmd += ["-H", f"{k}: {v}"]
-    cmd.append(url)
-
-    proc = subprocess.run(cmd, capture_output=True, timeout=60)
-    if proc.returncode != 0:
-        err = proc.stderr.decode("utf-8", errors="replace").strip()[:200]
-        raise RuntimeError(f"curl 退出码 {proc.returncode}：{err}")
-
-    out = proc.stdout.decode("utf-8", errors="replace")
-    body, _, status = out.rpartition("\n")
-    return int(status or 0), body
-
-
 def to_utc(value: str) -> datetime:
     """
     把各源五花八门的时间串统一成带时区的 datetime。
 
     实际会碰到的形状：
-      "2026-09-13T13:00:00Z"        Jolpica（date + time 拼起来）
+      "2026-09-13T13:00:00Z"        MLB Stats API、football-data.org
+      "2026-03-08T04:00:00+00:00"   OpenF1
       "2026-09-13T14:00:00+0200"    MotoGP Pulselive，偏移量不带冒号
       "2026-09-12T09:00:00Z"        lolesports
-      Unix 秒                        Sofascore，另外处理
     """
     s = value.strip().replace("Z", "+00:00")
     # Python 3.11 之前不认 "+0200" 这种不带冒号的偏移，补一个冒号
@@ -202,7 +287,9 @@ def make_event(cat, eid, title, short, start, end, venue, source, rank,
       应该是**一张**卡（标题「F1 · 西班牙站」，下面列出各场次），
       而不是五张各说各话的卡。所以同一个周末的场次共用 group。
 
-      队伍类没有这种层级，一场比赛就是一张卡，group 用比赛自己的 id。
+      队伍类一般没有这种层级，一场比赛就是一张卡，group 用比赛自己的 id。
+      **例外是棒球**：一个系列赛（3~4 连战）是一个整体，理由和赛车项目一样 ——
+      见 fetch_mlb 里那段说明。
     """
     return {
         "id": eid,
@@ -220,35 +307,68 @@ def make_event(cat, eid, title, short, start, end, venue, source, rank,
     }
 
 
-# ══ F1 · Jolpica ═════════════════════════════════════════════════════════
-#
-# Ergast 的社区继任者，Cloudflare 托管。传统 Ergast 只有正赛日期，Jolpica 补上了
-# 练习赛/排位的时间字段，所以一个源就够了，不用再找第二个。
-#
-# 两种周末的字段不一样，都要认：
-#   常规周末：FirstPractice / SecondPractice / ThirdPractice / Qualifying
-#   冲刺周末：FirstPractice / Qualifying / SprintQualifying / Sprint（没有二三练）
-# 所以下面按「出现哪个字段就取哪个」来处理，不写死顺序。
+def pick_short(code: str | None, fallback: str | None, cn_map: dict) -> str:
+    """
+    对手短名，三字母代号优先。
 
-# ⚠️ 正赛不在这个表里，它是特例 —— 见 fetch_f1 里的说明。
-# 冲刺排位和冲刺赛都简称「冲刺」会分不清，所以分开：冲刺 / 冲刺赛（都是 2~3 个汉字，放得下）。
-F1_SESSION_LABELS = {
-    "FirstPractice":    ("第一次练习", "FP1", RANK_PRACTICE),
-    "SecondPractice":   ("第二次练习", "FP2", RANK_PRACTICE),
-    "ThirdPractice":    ("第三次练习", "FP3", RANK_PRACTICE),
-    "Qualifying":       ("排位赛", "排位", RANK_QUALI),
-    "SprintQualifying": ("冲刺排位", "冲刺", RANK_QUALI),
-    "Sprint":           ("冲刺赛", "冲刺赛", RANK_RACE),
-    "Race":             ("正赛", "正赛", RANK_RACE),
+    足球（football-data.org 的 tla）、棒球（MLB 的 abbreviation）、
+    篮球（balldontlie 的 abbreviation）三家都给三字母代号，所以三张中文覆盖表
+    用的是同一套键。查不到就用代号本身（3 个拉丁字符，正好放得下），
+    再不行才退回队名 —— 队名多半会被 clip_short 截断，是最后的选择。
+    """
+    code = (code or "").strip().upper()
+    if code and code in cn_map:
+        return cn_map[code]
+    if code:
+        return code
+    return (fallback or "?").strip()
+
+
+def team_side(home: dict, away: dict, team_id, cat_side=("主", "客")):
+    """
+    判断我们追的队这场是主是客，返回 (对手, 主客标记)。
+
+    **用 id 比用队名可靠** —— 各家的展示名会随语言、随赛季变，id 不变。
+    两边都没匹配上时给「?」而不是猜：显示错了比显示「?」更糟。
+    """
+    if home.get("id") == team_id:
+        return away, cat_side[0]
+    if away.get("id") == team_id:
+        return home, cat_side[1]
+    return away, "?"
+
+
+# ══ F1 · OpenF1 ══════════════════════════════════════════════════════════
+#
+# api.openf1.org，免注册、有文档。一次请求拿到整年全部场次，
+# 而且**每节练习赛都在**（这是它比 api-sports.io 的 F1 接口强的地方 ——
+# 那家只给正赛，一个周末最重要的 FP/排位信息全没有）。
+#
+# session_name 的取值实测有：
+#     Practice 1/2/3、Qualifying、Sprint Qualifying、Sprint、Race
+#     Day 1/2/3   ← 这是冬测，不是比赛周末，要挡掉
+#
+# 所以下面这张表**同时是白名单**：不在表里的一律跳过，
+# 以后 OpenF1 加了新场次类型也不会莫名其妙混进日历。
+
+OPENF1_SESSION_LABELS = {
+    "Practice 1":        ("第一次练习", "FP1", RANK_PRACTICE),
+    "Practice 2":        ("第二次练习", "FP2", RANK_PRACTICE),
+    "Practice 3":        ("第三次练习", "FP3", RANK_PRACTICE),
+    "Qualifying":        ("排位赛", "排位", RANK_QUALI),
+    "Sprint Qualifying": ("冲刺排位", "冲刺", RANK_QUALI),
+    "Sprint":            ("冲刺赛", "冲刺赛", RANK_RACE),
+    "Race":              ("正赛", "正赛", RANK_RACE),
 }
 
 F1_COUNTRY_CN = {
     "Spain": "西班牙", "Azerbaijan": "阿塞拜疆", "Bahrain": "巴林", "Saudi Arabia": "沙特",
     "Australia": "澳大利亚", "Japan": "日本", "China": "中国", "United States": "美国",
     "USA": "美国", "Italy": "意大利", "Monaco": "摩纳哥", "Canada": "加拿大",
-    "Austria": "奥地利", "Great Britain": "英国", "UK": "英国", "Belgium": "比利时",
-    "Hungary": "匈牙利", "Netherlands": "荷兰", "Singapore": "新加坡", "Mexico": "墨西哥",
-    "Brazil": "巴西", "Qatar": "卡塔尔", "United Arab Emirates": "阿布扎比", "UAE": "阿布扎比",
+    "Austria": "奥地利", "Great Britain": "英国", "United Kingdom": "英国",
+    "Belgium": "比利时", "Hungary": "匈牙利", "Netherlands": "荷兰", "Singapore": "新加坡",
+    "Mexico": "墨西哥", "Brazil": "巴西", "Qatar": "卡塔尔",
+    "United Arab Emirates": "阿布扎比", "UAE": "阿布扎比",
     "Korea": "韩国", "South Korea": "韩国", "France": "法国", "Germany": "德国",
     "Portugal": "葡萄牙", "Turkey": "土耳其", "Russia": "俄罗斯", "Vietnam": "越南",
     "Sweden": "瑞典", "Switzerland": "瑞士", "South Africa": "南非", "Argentina": "阿根廷",
@@ -258,61 +378,67 @@ F1_COUNTRY_CN = {
 
 def fetch_f1(cfg: dict, lo: datetime, hi: datetime) -> list:
     season = lo.year
-    url = f"https://api.jolpi.ca/ergast/f1/{season}/races.json?limit=100"
+    url = f"https://api.openf1.org/v1/sessions?year={season}"
     data = json.loads(http_get(url))
-    races = data["MRData"]["RaceTable"]["Races"]
+    dump_raw(data, "f1/openf1")
 
     events = []
-    for race in races:
-        circuit = race.get("Circuit", {})
-        country = circuit.get("Location", {}).get("country", "")
-        place = F1_COUNTRY_CN.get(country) or race.get("raceName", "?")
-        venue = circuit.get("circuitName")
-        round_no = race.get("round", "?")
-        # 第 14 站 → 链接到该站的正赛页面
-        race_url = f"https://www.formula1.com/en/racing/{season}"
+    for s in data:
+        label, short, rank = OPENF1_SESSION_LABELS.get(
+            s.get("session_name"), (None, None, None)
+        )
+        # 白名单外的（冬测 Day 1/2/3、以后新增的场次类型）直接跳过
+        if not label:
+            continue
+        # 取消的场次不该占一格 —— 实测有这个字段，别等真出现了才发现
+        if s.get("is_cancelled"):
+            continue
+        raw_start = s.get("date_start")
+        if not raw_start:
+            continue
 
-        for field, (label, short, rank) in F1_SESSION_LABELS.items():
-            if field not in cfg.get("sessions", list(F1_SESSION_LABELS)):
-                continue
+        start = to_utc(raw_start)
+        if not (lo <= start <= hi):
+            continue
 
-            if field == "Race":
-                # ⚠️ 正赛是个特例：Jolpica/Ergast 把它的时间放在 race 对象的**顶层**
-                # date/time 上，而不是像练习赛那样有个 "Race" 子对象。
-                # 2026 赛季 23 站全都如此 —— 照着字段名遍历会正好漏掉整个周末最重要的那场，
-                # 而且不报错、不崩，只是那一格永远空着（这个坑是靠对着真实输出核对才发现的）。
-                node = {"date": race.get("date"), "time": race.get("time")}
-            else:
-                node = race.get(field)
+        # 用 country_name 而不是 location：location 是「Sakhir」「Suzuka」这种地名，
+        # 中文表是按国家建的；country_name 的值实测全都能命中 F1_COUNTRY_CN。
+        country = s.get("country_name") or ""
+        place = F1_COUNTRY_CN.get(country) or s.get("location") or "?"
+        end = to_utc(s["date_end"]) if s.get("date_end") else start + timedelta(hours=1)
 
-            if not node or not node.get("date"):
-                continue
-            t = node.get("time") or "00:00:00Z"
-            start = to_utc(f"{node['date']}T{t}")
-            if not (lo <= start <= hi):
-                continue
-            events.append(make_event(
-                cat="f1",
-                eid=f"f1-{season}-r{round_no}-{field.lower()}",
-                title=f"F1 {place}站 · {label}",
-                short=short,
-                start=start,
-                end=start + timedelta(hours=2),
-                venue=venue,
-                source="jolpica",
-                rank=rank,
-                # 同一站的 FP1/FP2/排位/正赛共用一张卡
-                group=f"f1-{season}-r{round_no}",
-                group_name=f"{place}站",
-                url=race_url,
-            ))
+        events.append(make_event(
+            cat="f1",
+            # session_key 是 OpenF1 自己的稳定主键
+            eid=f"f1-{s.get('session_key')}",
+            title=f"F1 {place}站 · {label}",
+            short=short,
+            start=start,
+            end=end,
+            venue=s.get("circuit_short_name"),
+            source="openf1",
+            rank=rank,
+            # 同一个比赛周末（meeting_key）的 FP1/排位/正赛共用一张卡
+            group=f"f1-{s.get('meeting_key')}",
+            group_name=f"{place}站",
+            url=f"https://www.formula1.com/en/racing/{season}",
+        ))
     return events
 
 
 # ══ MotoGP · Pulselive ═══════════════════════════════════════════════════
 #
-# motogp.com 自己的前端在调的接口 —— 无公开文档、无承诺，属于易变的那一类。
-# 实测已经踩到两个坑：
+# ⚠️ **已知风险源：这是全套里唯一还剩下的网页私有接口。**
+#
+# motogp.com 自己的前端在调的接口 —— 无公开文档、无承诺。换源的时候优先换它。
+# 之所以没换成注册制：市面上**没有能长期用的 MotoGP 接口** ——
+# Sportradar 有 MotoGP v2 但只有 30 天试用、到期断供，正式接入要走企业销售合同；
+# ESPN 不覆盖 MotoGP；TheSportsDB 免费档搜不到 MotoGP。
+#
+# 它没在 2026-09 那轮风控里被封，但这只是运气，不代表它稳。
+# 真挂了的表现是 sources.motogp.ok=false，处理办法见 README 的「源挂了怎么办」。
+#
+# 实测已经踩到两个坑（换源或它改版时对照）：
 #   · seasons 在 /motogp/v1/**results**/seasons，不是 /seasons（那个返回 400）
 #   · /events 只认 seasonYear，不认 seasonUuid
 #
@@ -336,6 +462,7 @@ def fetch_motogp(cfg: dict, lo: datetime, hi: datetime) -> list:
     url = (f"https://api.motogp.pulselive.com/motogp/v1/events"
            f"?seasonYear={season}&isFinished=false")
     data = json.loads(http_get(url))
+    dump_raw(data, "motogp/pulselive")
 
     want_class = cfg.get("class", "MotoGP")
     events = []
@@ -383,84 +510,330 @@ def fetch_motogp(cfg: dict, lo: datetime, hi: datetime) -> list:
     return events
 
 
-# ══ CS2 / 足球 · Sofascore ═══════════════════════════════════════════════
+# ══ 足球 · football-data.org ═════════════════════════════════════════════
 #
-# 一个源覆盖两类。网页私有接口，但实测免注册、免 header、大陆直连 0.4s，
-# 而且覆盖比 football-data.org 免费版还全（连国王杯都有）。
+# 注册制，免费档 10 次/分钟（本脚本一次运行只发 1~2 次请求，余量极大）。
+# 免费档明确包含西甲(PD)和欧冠(CL)，当年赛季数据完整。
 #
-# events/next/0 一次返回 30 场未来比赛，足够盖住 7 天窗口。
+# ⚠️ 对手短名用的是它的 **tla** 字段（BAR / ATM / SEV），
+# 与 config.json 里 opponentCn 的键对得上 —— 那张表是当年配 Sofascore 的
+# nameCode 时建的，两家的代号几乎一致，换源时只补了几个。
 
-def _team_short(team: dict, cn_map: dict) -> str:
-    """对手短名：中文覆盖表 -> nameCode/acronym -> 球队名截断。"""
-    for key in ("nameCode", "shortName", "acronym"):
-        code = team.get(key)
-        if code and code in cn_map:
-            return cn_map[code]
-    for key in ("nameCode", "acronym"):
-        code = team.get(key)
-        if code:
-            return code
-    return (team.get("shortName") or team.get("name") or "?").strip()
+FOOTBALL_API_BASE = "https://api.football-data.org/v4"
 
 
-def fetch_sofascore(cfg: dict, cat: str, lo: datetime, hi: datetime) -> list:
-    team_id = cfg["sofascoreId"]
-    team_name = cfg["team"]
-    team_label = cfg.get("teamLabel") or team_name
+def fetch_football(cfg: dict, lo: datetime, hi: datetime) -> list:
+    token = SECRETS.get("FOOTBALL_DATA_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "未配置 FOOTBALL_DATA_TOKEN。"
+            "仓库 Settings → Secrets and variables → Actions 加一个，"
+            "本地跑就写进 tools/.env"
+        )
+
+    team_id = cfg.get("footballDataTeamId")
+    team_label = cfg.get("teamLabel") or cfg.get("team") or "足球"
     cn_map = cfg.get("opponentCn") or {}
-    url = f"https://api.sofascore.com/api/v1/team/{team_id}/events/next/0"
-    # 注意走 curl_request 而不是 http_get —— 原因见上面 BROWSER_UA 那段注释
-    status, body = curl_request(url)
+    comp_labels = cfg.get("competitionLabels") or {}
+    headers = {"X-Auth-Token": token}
 
-    # ⚠️ Sofascore 对「未来没有比赛」的队返回的是 **404，不是空数组**。
-    # 猎鹰现在就是这个状态（BLAST 打完、下一站还没排上），而它是常态不是故障 ——
-    # 记成失败的话，App 的「数据源状态」会一直挂红，反而把真故障淹了。
-    if status == 404:
-        print("    （404 —— 该队未来暂无赛事，属正常状态）")
-        return []
-    if status != 200:
-        raise RuntimeError(f"HTTP {status}：{body[:200]}")
+    lo_d, hi_d = lo.strftime("%Y-%m-%d"), hi.strftime("%Y-%m-%d")
+    events = []
+    for code in cfg.get("competitions") or ["PD"]:
+        url = (f"{FOOTBALL_API_BASE}/competitions/{code}/matches"
+               f"?dateFrom={lo_d}&dateTo={hi_d}")
+        data = json.loads(http_get(url, headers=headers))
+        dump_raw(data, f"football/{code}")
 
-    data = json.loads(body)
+        for m in data.get("matches") or []:
+            home = m.get("homeTeam") or {}
+            away = m.get("awayTeam") or {}
+
+            # 服务端就算不认 dateFrom/dateTo、把整季都返回回来，这里也照样对
+            if team_id not in (home.get("id"), away.get("id")):
+                continue
+
+            # 已经打完的不进日历。窗口是从「昨天」开始的（见 main），
+            # 不加这层的话昨天那场会挂着一张永远点不亮的卡。
+            if (m.get("status") or "").upper() in ("FINISHED", "AWARDED"):
+                continue
+
+            raw_start = m.get("utcDate")
+            if not raw_start:
+                continue
+            start = to_utc(raw_start)
+            if not (lo <= start <= hi):
+                continue
+
+            opp, side = team_side(home, away, team_id)
+            opp_name = opp.get("name") or "?"
+            # 优先用配置里的中文赛事名（PD → 西甲），
+            # 它给的是「Primera Division」这种官方全称，显示在卡片上不亲切
+            tour = comp_labels.get(code) or (m.get("competition") or {}).get("name") or code
+
+            events.append(make_event(
+                cat="football",
+                eid=f"fd-{m.get('id')}",
+                title=f"{team_label}({side}) vs {opp_name} · {tour}",
+                short=pick_short(opp.get("tla"), opp.get("shortName") or opp_name, cn_map),
+                start=start,
+                # 它不给结束时间，也不给场地 —— App 端本来就不解析这两个字段
+                end=None,
+                venue=None,
+                source="football-data",
+                # 追的队的比赛本来就少，每一场都值得占一格
+                rank=RANK_RACE,
+                group=f"fd-{m.get('id')}",
+                group_name=tour,
+            ))
+    return events
+
+
+# ══ 棒球 · MLB Stats API ═════════════════════════════════════════════════
+#
+# **MLB 官方的接口**，免注册、免 key —— 这已经是最可靠的一档了，
+# 不可能再有比它更权威的源（mlb.com 自己就在用它）。
+#
+# hydrate=team 是为了拿 team.abbreviation（LAD / SF / SD），对手中文表按它建。
+# 不加 hydrate 的话 team 对象里只有 id 和 name，name 是「Los Angeles Dodgers」
+# 这种全称，直接塞进 chip 会被 clip_short 截成「Los A」。
+
+
+def fetch_mlb(cfg: dict, lo: datetime, hi: datetime) -> list:
+    team_id = cfg.get("mlbTeamId")
+    team_label = cfg.get("teamLabel") or cfg.get("team") or "棒球"
+    cn_map = cfg.get("opponentCn") or {}
+
+    url = ("https://statsapi.mlb.com/api/v1/schedule"
+           f"?sportId=1&teamId={team_id}"
+           f"&startDate={lo.strftime('%Y-%m-%d')}&endDate={hi.strftime('%Y-%m-%d')}"
+           f"&hydrate=team")
+    data = json.loads(http_get(url))
+    dump_raw(data, "mlb/statsapi")
 
     events = []
-    for ev in data.get("events", []):
-        ts = ev.get("startTimestamp")
-        if not ts:
+    # ── 系列赛归并 ────────────────────────────────────────────────────────
+    # 棒球一周 6 场，如果一场一张卡，7 天窗口里道奇一个人就占 7 张，
+    # 把 F1、MotoGP 这些一周只有一场的全挤到列表底下（实测过）。
+    # 所以一个系列赛（同一对手、同一主客场、连着打 3~4 天）并成一张卡 ——
+    # 和「F1 一个比赛周末并成一张卡」是同一个道理，只是这里的「一个整体」
+    # 是系列赛而不是比赛周末。
+    #
+    # 判据用 seriesGameNumber：它在每个系列赛的第一场等于 1。
+    # 不用「对手变了就换一组」—— 同一对手可能先在客场打一组、隔几周再在主场打一组，
+    # 那两组不该并在一起。分组还顺带把主客场分开了。
+    #
+    # 窗口是从中间切进来的（lo = 昨天），首场很可能不在窗口里，
+    # 所以 series_key 为空时也要起一组，不能干等下一个 1。
+    series_key = None
+
+    for day in data.get("dates") or []:
+        for g in day.get("games") or []:
+            # ⚠️ 系列赛边界必须在下面那些 continue **之前**判。
+            # 反过来的话，被跳过的「系列赛首场」（比如刚打完、状态已经是 Final 的那场）
+            # 就不会触发换组，后面几场会错接到上一组去。
+            if series_key is None or g.get("seriesGameNumber") == 1:
+                series_key = f"mlb-{g.get('gamePk')}"
+
+            state = ((g.get("status") or {}).get("detailedState") or "")
+            # 打完的和推迟的都不进日历。用 startswith 是因为实测有
+            # 「Final」「Final: Tied」「Game Over」几种写法
+            if state.lower().startswith("final") or "postponed" in state.lower():
+                continue
+
+            raw_start = g.get("gameDate")
+            if not raw_start:
+                continue
+            start = to_utc(raw_start)
+            if not (lo <= start <= hi):
+                continue
+
+            sides = g.get("teams") or {}
+            home = (sides.get("home") or {}).get("team") or {}
+            away = (sides.get("away") or {}).get("team") or {}
+            opp, side = team_side(home, away, team_id)
+            opp_name = opp.get("name") or "?"
+            opp_short = pick_short(opp.get("abbreviation"), opp.get("name"), cn_map)
+
+            events.append(make_event(
+                cat="mlb",
+                eid=f"mlb-{g.get('gamePk')}",
+                title=f"{team_label}({side}) vs {opp_name}",
+                short=opp_short,
+                start=start,
+                end=None,
+                venue=(g.get("venue") or {}).get("name"),
+                source="statsapi",
+                rank=RANK_RACE,
+                # 整个系列赛共用一张卡
+                group=series_key,
+                # 卡片标题读作「道奇 · @ 红人」（客场）/「道奇 · vs 巨人」（主场），
+                # 沿用北美体育的 @ / vs 记法 —— 一眼能看出这组是在谁家打的。
+                # 对手已经写在这里了，所以第二行的「vs 红人」不再重复对手之外的东西，
+                # 多出来的是场次数（「vs 红人 · 4 连战」）。
+                group_name=f"{'@' if side == '客' else 'vs'} {opp_short}",
+            ))
+    return events
+
+
+# ══ 篮球 · balldontlie ═══════════════════════════════════════════════════
+#
+# 注册制，免费档 5 次/分钟（本脚本一次运行只发 1 次请求）。
+# 免费档包含 Games 端点，能按 team_ids / start_date / end_date 过滤。
+#
+# 为什么不用官方端点（都实测过）：
+#   · stats.nba.com 带全套请求头返回 200，但响应体是 NBA.com 的首页 HTML ——
+#     反爬墙，不是数据，看状态码会以为成功了
+#   · cdn.nba.com 403（住宅 IP 也 403）
+#   · data.nba.net 证书错误，已经废弃
+#
+# ⚠️ 字段名注意：是 **visitor_team** 不是 away_team，是 **home_team**。
+# 而且 Authorization 头**不带 Bearer 前缀** —— 这点和 PandaScore 不一样，
+# 两者写反了都会 401，但报错信息看不出区别。
+
+
+def fetch_nba(cfg: dict, lo: datetime, hi: datetime) -> list:
+    key = SECRETS.get("BALLDONTLIE_KEY")
+    if not key:
+        raise RuntimeError(
+            "未配置 BALLDONTLIE_KEY。"
+            "仓库 Settings → Secrets and variables → Actions 加一个，"
+            "本地跑就写进 tools/.env"
+        )
+
+    team_id = cfg.get("balldontlieTeamId")
+    team_name = cfg.get("team") or ""
+    team_label = cfg.get("teamLabel") or team_name or "篮球"
+    cn_map = cfg.get("opponentCn") or {}
+
+    url = (f"https://api.balldontlie.io/v1/games?team_ids[]={team_id}"
+           f"&start_date={lo.strftime('%Y-%m-%d')}&end_date={hi.strftime('%Y-%m-%d')}"
+           f"&per_page=100")
+    # 不带 Bearer 前缀，见上面那段注释
+    data = json.loads(http_get(url, headers={"Authorization": key}))
+    dump_raw(data, "nba/balldontlie")
+
+    events = []
+    for g in data.get("data") or []:
+        home = g.get("home_team") or {}
+        away = g.get("visitor_team") or {}
+
+        # 先用 id 匹配；id 对不上就退回按队名匹配。
+        # 双保险是因为它的 id 体系我们没实测过，而队名（full_name）是自解释的。
+        if team_id not in (home.get("id"), away.get("id")) and \
+           team_name not in (home.get("full_name"), away.get("full_name")):
             continue
-        start = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+
+        status = (g.get("status") or "")
+        if status.lower().startswith("final"):
+            continue
+
+        raw_start = g.get("date")
+        if not raw_start:
+            continue
+        start = to_utc(raw_start)
         if not (lo <= start <= hi):
             continue
 
-        home = ev.get("homeTeam") or {}
-        away = ev.get("awayTeam") or {}
-        # 判断我们追的队这场是主是客，对手取另一边。
-        # 用 id 比用队名可靠 —— Sofascore 的展示名会随语言变。
-        if home.get("id") == team_id:
-            opp, side = away, "主"
-        elif away.get("id") == team_id:
-            opp, side = home, "客"
+        # 上面可能走的是队名匹配，这里统一按 id 判主客；判不出来再退回队名
+        if team_id in (home.get("id"), away.get("id")):
+            ours_home = home.get("id") == team_id
         else:
-            opp, side = away, "?"
+            ours_home = home.get("full_name") == team_name
+        opp = away if ours_home else home
+        side = "主" if ours_home else "客"
 
-        opp_name = opp.get("name") or "?"
-        tour = (ev.get("tournament") or {}).get("name") or ""
+        opp_name = opp.get("full_name") or opp.get("name") or "?"
 
         events.append(make_event(
-            cat=cat,
-            eid=f"sofa-{ev.get('id')}",
-            title=f"{team_label}({side}) vs {opp_name}" + (f" · {tour}" if tour else ""),
-            short=_team_short(opp, cn_map),
+            cat="nba",
+            eid=f"nba-{g.get('id')}",
+            title=f"{team_label}({side}) vs {opp_name}",
+            short=pick_short(opp.get("abbreviation"), opp.get("name"), cn_map),
             start=start,
             end=None,
             venue=None,
-            source="sofascore",
-            # 追的队的比赛本来就少，每一场都值得占一格
+            source="balldontlie",
             rank=RANK_RACE,
-            # 队伍类没有「一个周末」这种层级，一场比赛就是一张卡
-            group=f"sofa-{ev.get('id')}",
-            group_name=tour or "比赛",
-            url=f"https://www.sofascore.com/event/{ev.get('id')}",
+            group=f"nba-{g.get('id')}",
+            # 同 mlb：标题读作「勇士 · NBA」，对齐「皇马 · 西甲」的写法
+            group_name="NBA",
+        ))
+    return events
+
+
+# ══ CS2 · PandaScore ═════════════════════════════════════════════════════
+#
+# 注册制，免费档 1000 次/小时（本脚本一次运行只发 1 次请求）。
+# Bearer token，注意和 balldontlie 不一样，那个不带前缀。
+#
+# 为什么不用官方的 HLTV 之类：没有官方接口，HLTV 明确禁止抓取。
+# PandaScore 是电竞数据里唯一有正经文档和免费档的。
+#
+# ⚠️ 这里**没有用 filter[opponent_id]** 做服务端过滤，而是拉一页 upcoming
+# 再本地按对手 id 过滤。服务端过滤语法没实测过，本地过滤是不依赖文档的 ——
+# 代价是一次拉 100 条，命中率取决于猎鹰未来 60 天有没有排上比赛。
+# 真出现「赛程里有但这里没抓到」，再换成 filter[opponent_id]。
+
+
+def fetch_cs2(cfg: dict, lo: datetime, hi: datetime) -> list:
+    token = SECRETS.get("PANDASCORE_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "未配置 PANDASCORE_TOKEN。"
+            "仓库 Settings → Secrets and variables → Actions 加一个，"
+            "本地跑就写进 tools/.env"
+        )
+
+    team_id = cfg.get("pandascoreTeamId")
+    team_name = cfg.get("team") or ""
+    team_label = cfg.get("teamLabel") or team_name or "CS2"
+
+    url = "https://api.pandascore.co/csgo/matches/upcoming?per_page=100"
+    data = json.loads(http_get(url, headers={"Authorization": f"Bearer {token}"}))
+    dump_raw(data, "cs2/pandascore")
+
+    # 返回的是一个**数组**，不是对象
+    events = []
+    for m in data or []:
+        opponents = [o.get("opponent") or {} for o in (m.get("opponents") or [])]
+        if len(opponents) < 2:
+            continue
+
+        # 同样双保险：id 优先，队名兜底
+        ours = next((o for o in opponents if o.get("id") == team_id), None)
+        if not ours and team_name:
+            ours = next((o for o in opponents if o.get("name") == team_name), None)
+        if not ours:
+            continue
+
+        raw_start = m.get("begin_at")
+        if not raw_start:
+            continue
+        start = to_utc(raw_start)
+        if not (lo <= start <= hi):
+            continue
+
+        opp = next((o for o in opponents if o is not ours), {})
+        # 赛事名尽量拼全：联赛 + 锦标赛，如「BLAST Premier · Fall Final」
+        serie = (m.get("serie") or {}).get("full_name") or ""
+        tour = (m.get("tournament") or {}).get("name") or ""
+        suffix = " · ".join(x for x in (serie, tour) if x) or "CS2"
+
+        events.append(make_event(
+            cat="cs2",
+            eid=f"ps-{m.get('id')}",
+            title=f"{team_label} vs {opp.get('name') or '?'} · {suffix}",
+            # 对手的 code 是 2-3 个拉丁字符（如 NAVI / FNC），天然适配小组件，
+            # 所以这里不查中文表 —— 查了反而要多维护一张 60 条的表
+            short=opp.get("acronym") or opp.get("name") or "?",
+            start=start,
+            end=to_utc(m["end_at"]) if m.get("end_at") else None,
+            venue=None,
+            source="pandascore",
+            rank=RANK_RACE,
+            group=f"ps-{m.get('id')}",
+            group_name=suffix,
         ))
     return events
 
@@ -478,6 +851,7 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
     url = ("https://esports-api.lolesports.com/persisted/gw/getSchedule"
            f"?hl=zh-CN&leagueId={league_id}")
     data = json.loads(http_get(url, headers={"x-api-key": LOL_API_KEY}))
+    dump_raw(data, "lol/lolesports")
 
     events = []
     for ev in data.get("data", {}).get("schedule", {}).get("events", []):
@@ -522,17 +896,52 @@ def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
 
 # ══ 主流程 ════════════════════════════════════════════════════════════════
 
+# 顺序就是日志和 sources 里的顺序：赛车项目在前（它们一个周末撑起一张卡），
+# 队伍类在后。
 SOURCES = [
     ("f1", fetch_f1),
     ("motogp", fetch_motogp),
-    ("cs2", lambda cfg, lo, hi: fetch_sofascore(cfg, "cs2", lo, hi)),
-    ("football", lambda cfg, lo, hi: fetch_sofascore(cfg, "football", lo, hi)),
+    ("football", fetch_football),
+    ("mlb", fetch_mlb),
+    ("nba", fetch_nba),
+    ("cs2", fetch_cs2),
     ("lol", fetch_lol),
 ]
 
 
+def parse_args() -> argparse.Namespace:
+    ap = argparse.ArgumentParser(
+        description="把七个赛事源抓成一个 calendar.json",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "调试用法：\n"
+            "  python tools/fetch_calendar.py --only football --raw\n"
+            "     只跑足球这一个源，并把上游原始响应打出来。\n"
+            "     --only 模式**不写任何文件** —— 免得用一份残缺的日历\n"
+            "     把 data/calendar.json 覆盖掉。\n"
+        ),
+    )
+    ap.add_argument("--only", metavar="CAT",
+                    help=f"只跑一个类别，可选：{', '.join(k for k, _ in SOURCES)}")
+    ap.add_argument("--raw", action="store_true",
+                    help="把上游原始响应打到 stdout（核对字段名用，会截断）")
+    return ap.parse_args()
+
+
 def main() -> int:
+    global RAW
+    args = parse_args()
+    RAW = args.raw
+
+    only = (args.only or "").strip().lower()
+    if only and only not in dict(SOURCES):
+        print(f"未知类别 {only!r}，可选：{', '.join(k for k, _ in SOURCES)}", file=sys.stderr)
+        return 2
+
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+
+    print("密钥：")
+    report_secrets()
 
     now = datetime.now(timezone.utc)
     # 从一天前开始收，这样今天已经打完的场次也能进来 ——
@@ -549,12 +958,17 @@ def main() -> int:
     marks: dict = {}
 
     for cat, fn in SOURCES:
+        if only and cat != only:
+            continue
         cfg = config.get(cat) or {}
 
         labels[cat] = cfg.get("teamLabel") or cfg.get("label") or cat
         marks[cat] = cfg.get("mark") or labels[cat][:2]
 
-        if not cfg.get("enabled"):
+        if only:
+            # --only 是调试：即便 config 里关着也照跑，不然没法验证新写的源
+            pass
+        elif not cfg.get("enabled"):
             health[cat] = {"ok": True, "count": 0, "error": None, "enabled": False}
             print(f"[{cat}] 已禁用，跳过")
             continue
@@ -572,6 +986,15 @@ def main() -> int:
 
     all_events.sort(key=lambda e: (e["start"], e["cat"]))
 
+    if only:
+        # 调试模式到此为止，不写文件（见 parse_args 的说明）
+        print(f"\n--only {only}：{len(all_events)} 场")
+        for e in all_events[:15]:
+            print(f"  {e['start']}  {e['cat']:<8} {e['short']:<8} {e['title']}")
+        if len(all_events) > 15:
+            print(f"  …还有 {len(all_events) - 15} 场")
+        return 0
+
     out = {
         "generated_at": iso_z(now),
         "window_days": WINDOW_DAYS,
@@ -581,6 +1004,9 @@ def main() -> int:
         "events": all_events,
     }
     text = json.dumps(out, ensure_ascii=False, indent=2)
+
+    # 落盘前的最后一道闸，见 assert_no_secrets
+    assert_no_secrets(text, "data/calendar.json")
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(text, encoding="utf-8")

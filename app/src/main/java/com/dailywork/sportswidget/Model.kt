@@ -18,20 +18,33 @@ import java.time.ZoneId
  * 存 epoch 而不是 LocalDateTime，是因为跨时区、跨夏令时比较大小永远是对的。
  */
 
-/** 五个赛事类别。key 与后端 JSON 里的 cat 字段一一对应。 */
+/**
+ * 七个赛事类别。key 与后端 JSON 里的 cat 字段一一对应。
+ *
+ * 顺序 = 图例里的顺序，也和 tools/fetch_calendar.py 的 SOURCES 一致：
+ * 先是赛车项目（一个周末撑起一张卡），再是队伍类。
+ *
+ * ⚠️ **加新类别必须同时改三处**，漏一处这个类别在手机上就整个不显示
+ * （CalendarParser.parse 对认不出的 cat 是静默跳过，不报错）：
+ *   1. 这里加枚举项
+ *   2. res/drawable/ 加一个 bg_pill_xxx.xml
+ *   3. values/colors.xml 和 values-night/colors.xml 各加一个 cat_xxx
+ */
 enum class Cat(
     val key: String,
     /** App 图例里显示的名字 */
     val label: String,
-    /** 小组件里 chip 的背景（5 个预置 drawable，见 bg_pill_f1.xml 的说明） */
+    /** 小组件里 chip 的背景（7 个预置 drawable，见 bg_pill_f1.xml 的说明） */
     val pillRes: Int,
     /** App 图例色点的颜色 */
     val dotColorRes: Int,
 ) {
     F1("f1", "F1", R.drawable.bg_pill_f1, R.color.cat_f1),
     MOTOGP("motogp", "MotoGP", R.drawable.bg_pill_mgp, R.color.cat_mgp),
-    CS2("cs2", "CS2 · 猎鹰", R.drawable.bg_pill_cs2, R.color.cat_cs2),
     FOOTBALL("football", "足球 · 皇马", R.drawable.bg_pill_football, R.color.cat_football),
+    MLB("mlb", "棒球 · 道奇", R.drawable.bg_pill_mlb, R.color.cat_mlb),
+    NBA("nba", "篮球 · 勇士", R.drawable.bg_pill_nba, R.color.cat_nba),
+    CS2("cs2", "CS2 · 猎鹰", R.drawable.bg_pill_cs2, R.color.cat_cs2),
     LOL("lol", "英雄联盟 · IG", R.drawable.bg_pill_lol, R.color.cat_lol),
     ;
 
@@ -40,9 +53,13 @@ enum class Cat(
      *
      * 两者的卡片第二行写法不一样：队伍类只有一个对手（「vs 巴列卡」），
      * 赛车项目要把一个周末的各场次串起来（「FP1 · FP2 · 排位 · 正赛」）。
+     *
+     * 写成「除了赛车项目都是队伍类」而不是逐个列举：以后加新类别时，
+     * 默认落进队伍类（显示「vs 对手」）比默认落进赛事类
+     * （把一堆时间上不相干的场次用 · 串成一行）要安全得多。
      */
     val isTeamSport: Boolean
-        get() = this == CS2 || this == FOOTBALL || this == LOL
+        get() = this != F1 && this != MOTOGP
 
     companion object {
         fun fromKey(key: String?): Cat? = entries.firstOrNull { it.key == key }
@@ -67,7 +84,9 @@ data class Event(
     val rank: Int,
     /**
      * 归属的卡片。一个比赛周末的多场次共用一个 group —— F1 西班牙站的
-     * FP1/FP2/排位/正赛是**一张**卡，不是四张。队伍类一场比赛就是一张卡。
+     * FP1/FP2/排位/正赛是**一张**卡，不是四张。棒球的一个系列赛同理
+     * （3~4 连战共用一张卡，否则道奇一个人就能占满整个小组件）。
+     * 其余队伍类一场比赛就是一张卡。分组在后端定，App 只按这个字段归并。
      */
     val group: String,
     /** 卡片标题的后半段：「西班牙站」「LaLiga」「LPL 淘汰赛」 */
