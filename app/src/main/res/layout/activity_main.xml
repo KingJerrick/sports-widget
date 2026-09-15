@@ -175,6 +175,13 @@
             android:textColor="@color/text_muted"
             android:textSize="10sp" />
 
+        <!--
+          三个按键各干一件事，边界是「联网做什么」：
+            保存 —— 不联网，只写设置 + 按新间隔重排周期任务
+            刷新 —— 联网 GET 一份现成的 calendar.json，不碰 Actions
+            测试 —— 联网 GET 一次，但只报告不落库
+          要更新的数据得先点下面的「触发抓取」再去点「刷新」，见 README。
+        -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -189,6 +196,16 @@
                 android:backgroundTint="@color/accent"
                 android:text="@string/btn_save"
                 android:textColor="@color/white" />
+
+            <Button
+                android:id="@+id/btn_refresh"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/bg_card"
+                android:text="@string/btn_refresh_now"
+                android:textColor="@color/text_primary" />
 
             <Button
                 android:id="@+id/btn_test"

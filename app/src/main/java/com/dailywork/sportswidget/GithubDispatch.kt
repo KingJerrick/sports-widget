@@ -5,6 +5,26 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
+ * 一次触发的结局。
+ *
+ * 同时带长短两版文案，是因为两个显示位置能放的字数差一个数量级：
+ *   · 小组件顶栏那一行总共只有 50dp 上下，[error] 那种带排查提示的长句塞不进去，
+ *     塞进去也会把旁边的七天条挤没（状态行是 wrap_content）。
+ *   · App 里能整段摊开，用户也正是在那里才能动手修（填 token、改地址）。
+ *
+ * 让触发这一层直接把两版都给出来，比在调用点按字符串长度截断可靠 ——
+ * 截断出来的半句话往往是「GitHub 说找不到这个仓库」这种最关键的半句。
+ */
+data class TriggerResult(
+    /** 成功是 null；失败是给 App 看的完整说明，人话 + 排查方向。 */
+    val error: String?,
+    /** 给小组件状态行用的极短版本（4~8 字），成功失败都有。 */
+    val short: String,
+) {
+    val ok: Boolean get() = error == null
+}
+
+/**
  * 让后端「现在就去抓一次」。
  *
  * ── 为什么需要它 ──────────────────────────────────────────────────────
@@ -12,8 +32,11 @@ import java.net.URL
  * 连点十次也还是那几个小时前生成的那份。这个文件让 App 能主动让后端开跑，
  * 跑完再回来取，手动刷新才真的「新」。
  *
- * 触发之后**不在这里等结果**：一次 Actions 跑完要一两分钟。调用方负责排一个
- * 延时任务过一会儿再来取（见 [RefreshScheduler]）。
+ * 触发之后**不在这里等结果**，也**不负责安排什么时候回来取** ——
+ * 一次 Actions 跑完要一两分钟，而「过两分钟自动回来取」这件事在手机上做不到：
+ * 它要靠 WorkManager 的 setInitialDelay 加网络约束，Doze 和各家的省电策略
+ * 想推迟就推迟，表现是「触发了、GitHub 也真跑了，但手机永远没自动拿到新数据」。
+ * 所以取数这件事交回给人：点完「抓取」，过两分钟自己点「刷新」（见 README）。
  *
  * ── token 存哪 ───────────────────────────────────────────────────────
  * 只存在设备上，见 [Prefs.getGithubToken]。不进仓库、不进 APK ——
@@ -76,23 +99,28 @@ object GithubDispatch {
     /**
      * 触发一次抓取。
      *
-     * **返回 null 表示成功**，否则是给用户看的一句错误说明。
+     * **不抛异常**：调用点在协程里，而失败是常态（没配 token、token 过期、
+     * 没给够权限、网络不通），每一种都得翻译成人话 —— 抛异常的话最后只会显示
+     * 一个 `IOException`，用户没法据此做任何事。
      *
-     * 用返回值而不是抛异常：调用点在协程里，而失败是常态（没配 token、
-     * token 过期、没给够权限、网络不通），每一种都得翻译成人话 ——
-     * 抛异常的话最后只会显示一个 `IOException`，用户没法据此做任何事。
+     * 返回的 [TriggerResult] 长短两版都给，理由见那个类的说明。
      */
-    fun trigger(ctx: Context): String? {
+    fun trigger(ctx: Context): TriggerResult {
         val token = Prefs.getGithubToken(ctx)
         if (token.isBlank()) {
-            return "没配 GitHub token。想用「手动触发抓取」得先填上，见下面的说明。"
+            return TriggerResult(
+                error = "没配 GitHub token。想用「抓取」得先在设置里填上，见下面的说明。",
+                short = "没配 token",
+            )
         }
 
         // 用当前生效的第一个端点推仓库：用户填了自定义地址就推它，
         // 没填就是默认的 jsDelivr 那条
         val endpoint = CalendarClient.endpoints(ctx).firstOrNull().orEmpty()
-        val repo = repoOf(endpoint)
-            ?: return "从数据地址里认不出是哪个仓库，触发不了抓取：\n$endpoint"
+        val repo = repoOf(endpoint) ?: return TriggerResult(
+            error = "从数据地址里认不出是哪个仓库，触发不了抓取：\n$endpoint",
+            short = "认不出仓库",
+        )
 
         var conn: HttpURLConnection? = null
         return try {
@@ -117,14 +145,28 @@ object GithubDispatch {
 
             // 成功是 204 No Content（有些代理会改写成 200，一并认）
             when (val code = c.responseCode) {
-                in 200..299 -> null
-                401 -> "token 无效或已过期，重新建一个填进来"
-                403 -> "token 权限不够 —— 需要这个仓库的 Actions 读写权限"
-                404 -> "GitHub 说找不到这个仓库或 workflow（认出来的是 $repo）"
-                else -> "GitHub 返回 HTTP $code" + errorDetail(c)
+                in 200..299 -> TriggerResult(null, "已触发")
+                401 -> TriggerResult("token 无效或已过期，重新建一个填进来", "token 无效")
+                403 -> TriggerResult(
+                    "token 权限不够 —— 需要这个仓库的 Actions 读写权限",
+                    "权限不够",
+                )
+                404 -> TriggerResult(
+                    "GitHub 说找不到这个仓库或 workflow（认出来的是 $repo）",
+                    "找不到仓库",
+                )
+                else -> TriggerResult(
+                    "GitHub 返回 HTTP $code" + errorDetail(c),
+                    "HTTP $code",
+                )
             }
         } catch (e: Exception) {
-            "触发失败：${e.message ?: e.javaClass.simpleName}"
+            // 超时 / DNS / 连不上都会落到这里。缩写不写具体的异常名 ——
+            // 小组件那一行放不下，而且对用户来说都归到「网络」这一档
+            TriggerResult(
+                error = "触发失败：${e.message ?: e.javaClass.simpleName}",
+                short = "网络异常",
+            )
         } finally {
             conn?.disconnect()
         }

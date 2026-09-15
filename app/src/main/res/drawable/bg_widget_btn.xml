@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  小组件顶栏那两个按键（刷新 / 抓取）的底。
+
+  用「浅底 + 一圈描边」这种描边按钮，而不是实心色块 —— 顶栏紧挨着卡片流，
+  实心按钮会和卡片底色的三档状态抢注意力。按 colors.xml 开头那条规则，
+  画面里唯一的彩度应该来自赛事条本身。
+
+  两个按键共用这一个 drawable，靠文字颜色区分主次（刷新是 accent_text、
+  抓取是 text_secondary）。底和描边都取既有颜色名，它们在 values-night 里
+  有对应值，所以深浅色模式自动跟着换，不用再分一份 v-night 的 drawable。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/bg_card" />
+    <corners android:radius="6dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/hairline" />
+</shape>

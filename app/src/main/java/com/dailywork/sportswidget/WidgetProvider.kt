@@ -61,26 +61,25 @@ class WidgetProvider : AppWidgetProvider() {
     override fun onDisabled(context: Context) {
         // 桌面上一个小组件都不剩了，停掉后台任务省电。
         // 注意这是「最后一个被移除」时才触发，不是每次移除。
+        // 两条线都要停：拉数据的和触发 Actions 的。
         RefreshScheduler.cancel(context)
+        TriggerScheduler.cancel(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         when (intent.action) {
+            // 刷新：只拉一份现成的 calendar.json，不碰 Actions
             ACTION_REFRESH -> {
-                // 先给出「刷新中…」的即时反馈，联网交给 WorkManager
-                val mgr = AppWidgetManager.getInstance(context)
-                val ids = mgr.getAppWidgetIds(ComponentName(context, WidgetProvider::class.java))
-                ids.forEach {
-                    WidgetRenderer.render(
-                        context, mgr, it,
-                        statusOverride = context.getString(R.string.status_loading),
-                    )
-                }
-                // triggerRemote：用户手动点的，顺便让 GitHub 也去抓一趟，
-                // 两分钟后再自动回来取新数据。没配 token 时这一步会静默跳过，
-                // 退化成「只拉现成的」，也就是以前的行为（见 RefreshWorker.doWork）
-                RefreshScheduler.schedule(context, immediate = true, triggerRemote = true)
+                flashStatus(context, R.string.status_refreshing)
+                RefreshScheduler.schedule(context, immediate = true)
+            }
+
+            // 抓取：只让 GitHub 现在开跑，**不拉数据**。
+            // 结果（成功 / 失败原因）由 TriggerRunner 写完再重画一次状态行
+            ACTION_TRIGGER -> {
+                flashStatus(context, R.string.status_triggering)
+                TriggerScheduler.schedule(context)
             }
 
             // 跨零点 / 手动改时间 / 换时区：只按新时区重算「今天」和卡片时间文案，**不联网**。
@@ -95,6 +94,27 @@ class WidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_REFRESH = "com.dailywork.sportswidget.ACTION_REFRESH"
+        const val ACTION_TRIGGER = "com.dailywork.sportswidget.ACTION_TRIGGER"
+
+        /**
+         * 点完按键先把状态行换掉，给一个即时反馈，真正的活交给 WorkManager。
+         *
+         * 走 [WidgetRenderer.render] 的 statusOverride 而**不是**写进 Prefs 的
+         * [Notice]：这一句是瞬时的，没有任何人负责把它清掉。写进 notice 的话，
+         * 一旦后台任务因为没网迟迟排不上，小组件就会永远停在「刷新中…」上。
+         * override 只活在这一次渲染里 —— 下一次任何重画（Worker 跑完、跨零点、
+         * 启动器重新绑上来的 onUpdate）都会自动回到正常状态。
+         */
+        private fun flashStatus(context: Context, stringRes: Int) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, WidgetProvider::class.java))
+            ids.forEach {
+                WidgetRenderer.render(
+                    context, mgr, it,
+                    statusOverride = context.getString(stringRes),
+                )
+            }
+        }
 
         /**
          * 把桌面上所有小组件重画一遍（不联网，只重新分组已有的数据）。
@@ -260,44 +280,71 @@ object WidgetRenderer {
         val hasData = data.generatedAtMs > 0L
         val stale = hasData && stalenessMs(data.generatedAtMs, now) > STALE_AFTER_MS
 
-        val text = when {
-            statusOverride != null -> statusOverride
-            !hasData -> context.getString(R.string.status_never)
+        // 上一次点「抓取」的结果。有它就压过时间戳 —— 它存在的意义就是告诉用户
+        // 触发到底成没成，而这件事只在用户下次点「刷新」之前有意义
+        // （清掉的地方在 CalendarRefresher.refresh）。
+        val notice = Prefs.getNotice(context)
+
+        // 一个文案配一个「要不要琥珀色」。琥珀色是**异常**的专用色，
+        // 绿色的时间戳、灰色的「刷新中…」都不该借它用。
+        val (text, amber) = when {
+            // 1. 刚点完按键的瞬时反馈
+            statusOverride != null -> statusOverride to false
+            // 2. 上次「抓取」的结果
+            notice != null -> notice.text to notice.failed
+            // 3. 从没获取过数据 —— 还没配好，不报警色
+            !hasData -> context.getString(R.string.status_never) to false
+            // 4. 正常：数据生成时间，超过 24 小时转琥珀
             else -> {
                 val stamp = Instant.ofEpochMilli(data.generatedAtMs)
                     .atZone(ZoneId.systemDefault())
                     .format(STAMP_FMT)
-                "${if (stale) "⚠ " else ""}$stamp"
+                "${if (stale) "⚠ " else ""}$stamp" to stale
             }
         }
 
         views.setTextViewText(R.id.tv_status, text)
         views.setTextColor(
             R.id.tv_status,
-            ContextCompat.getColor(
-                context,
-                if (stale && statusOverride == null) R.color.accent_amber else R.color.text_muted,
-            ),
+            ContextCompat.getColor(context, if (amber) R.color.accent_amber else R.color.text_muted),
         )
     }
 
     // ── 点击 ──────────────────────────────────────────────────────────
 
+    /**
+     * 两个按键各挂一个广播，中间和四周点空白处打开 App。
+     *
+     * 以前「刷新」是挂在**整条顶栏**上的（那时顶栏只有一个动作，整条可点等于把
+     * 触控区从 18dp 放大到整条）。现在有两个动作，整条可点就等于两个都不准，
+     * 所以点击收回到按钮自己身上，防误触改由「两个按钮离得远」来保证 ——
+     * 中间隔着整条七天条，而它没有任何点击事件。
+     */
     private fun applyClicks(context: Context, views: RemoteViews) {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
-        // 刷新挂在**整条顶栏**上，不是那个 18dp 的图标 ——
-        // 18dp 低于 48dp 的最小触控区，边缘点击会被启动器的缩放手柄吃掉。
+        // 请求码 1 / 3 给两个广播，2 给下面那个打开 App 的 —— 不能撞，
+        // 撞了的话 FLAG_UPDATE_CURRENT 会让后写的把先写的悄悄顶掉
         views.setOnClickPendingIntent(
-            R.id.header,
+            R.id.btn_refresh,
             PendingIntent.getBroadcast(
                 context, 1,
-                Intent(context, WidgetProvider::class.java).setAction(WidgetProvider.ACTION_REFRESH),
+                Intent(context, WidgetProvider::class.java)
+                    .setAction(WidgetProvider.ACTION_REFRESH),
+                flags,
+            ),
+        )
+        views.setOnClickPendingIntent(
+            R.id.btn_trigger,
+            PendingIntent.getBroadcast(
+                context, 3,
+                Intent(context, WidgetProvider::class.java)
+                    .setAction(WidgetProvider.ACTION_TRIGGER),
                 flags,
             ),
         )
 
-        // 顶栏以外的地方（主要是四周那圈内边距）点了打开 App。
+        // 按键以外的地方（七天条、四周那圈内边距）点了打开 App。
         // 卡片自己有 fill-in intent 会先接管，所以这里不会和它们抢 ——
         // 加上它是为了让「随便点小组件哪里都能进 App」，不然只有卡片那一小块有反应。
         views.setOnClickPendingIntent(

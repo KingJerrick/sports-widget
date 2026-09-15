@@ -5,23 +5,38 @@
   ══ 尺寸账（改字号、间距之前先看这段）══════════════════════════════════
 
     根 padding 上下 8*2                                       = 16
-    顶栏（是 max(子 view)，刷新图标 18dp 撑出来的）             = 18
+    顶栏（是 max(子 view)，现在由两个按键撑出来的）             = 24
     顶栏 → 列表间距                                            =  4
     ───────────────────────────────────────────────────────────────
-    固定部分合计                                               = 38
-    列表区 layout_weight=1，吸收剩余：110 - 38 = 72dp
+    固定部分合计                                               = 44
+    列表区 layout_weight=1，吸收剩余：110 - 44 = 66dp
 
-    一张卡片 38dp + 卡片间距 4dp = 42dp → **4×2 里可见约 1.7 张**。
+    一张卡片 38dp + 卡片间距 4dp = 42dp → **4×2 里可见约 1.6 张**。
     这不是排版没做好，是物理限制：卡片要放「图标 + 标题 + 时间 + 副标题」，
     38dp 已经是压到极限了。往下滑看其余，或者把小组件拖高 ——
-    代码允许拖到 180dp，那时可见约 3.4 张。
+    代码允许拖到 180dp，那时可见约 3.2 张。
+
+    顶栏这 24dp 是两个按键的 padding 撑出来的（10dp 字 + 上下各 6dp），
+    比原来的 18dp 图标高一点，代价是列表少 6dp、可见卡片从 1.7 张变 1.6 张。
+    这笔账是划算的：18dp 是「将将能点到」，24dp 是「点得准」。
 
   ══ 顶栏为什么把「标题」换成了「品牌竖条」════════════════════════════
 
-  顶栏这一行要放四样东西：身份标识、七天迷你条、数据更新时间、刷新按钮。
-  250dp 减掉左右内边距只有 234dp，写「赛事日历」四个字要 40dp，
-  七天条就没地方了。换成 3dp 的竖条，身份还在（那一抹颜色就是），
-  省下的宽度全给迷你条。
+  顶栏这一行要放五样东西：刷新按钮、身份标识、七天迷你条、数据更新时间、
+  抓取按钮。250dp 减掉左右内边距只有 234dp，两个按键（各约 32dp）拿走 64dp，
+  再写「赛事日历」四个字要 40dp，七天条就没地方了。换成 3dp 的竖条，
+  身份还在（那一抹颜色就是），省下的宽度全给迷你条。
+
+  ══ 两个按键为什么一左一右 ═══════════════════════════════════════════
+
+  触控区 32×22dp，远低于安卓建议的 48dp。小组件总共才 110dp 高，
+  顶栏再往上加就没地方放卡片了，所以这里防误触靠的是**距离**不是尺寸：
+  两个按键之间隔着整条七天条，而七天条没有任何点击事件 ——
+  点歪了最多落到根布局上（打开 App），不会误触发另一个按键。
+
+  这也是为什么**不再把点击挂在整条 header 上**：那是单按键时代的做法
+  （那时顶栏只有「刷新」一个动作，整条可点等于把触控区从 18dp 放大到整条）。
+  有了第二个按键之后，整条可点就等于两个都不准。
 
   ══ 可滚动是怎么实现的 ═══════════════════════════════════════════════
 
@@ -49,7 +64,7 @@
     android:orientation="vertical"
     android:padding="8dp">
 
-    <!-- ══ 顶栏：品牌竖条 + 七天迷你条 + 状态 + 刷新 ══════════════════ -->
+    <!-- ══ 顶栏：刷新 + 品牌竖条 + 七天迷你条 + 状态 + 抓取 ══════════ -->
     <LinearLayout
         android:id="@+id/header"
         android:layout_width="match_parent"
@@ -57,10 +72,38 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
+        <!--
+          刷新：**只**去 GitHub 拉一份现成的 calendar.json，不碰 Actions。
+          想要更新的数据得先点右边的「抓取」，等一两分钟再回来点这个。
+
+          这两个 TextView 是 RemoteViews 里少见的「不是拿来显示文字的 TextView」——
+          用它当按键是因为那边只有框架控件可用（没有 Button，见文件头第三条红线）。
+          minHeight/minWidth 都显式归零：布局是在**启动器的主题**里 inflate 的，
+          不归零会被那套主题的 textViewStyle 撑成它默认的尺寸。
+        -->
+        <TextView
+            android:id="@+id/btn_refresh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_widget_btn"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:paddingStart="6dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/action_refresh"
+            android:textColor="@color/accent_text"
+            android:textSize="10dp" />
+
         <!-- 品牌竖条。用 TextView 当色块，避免 RemoteViews 里出现裸 View -->
         <TextView
             android:layout_width="3dp"
             android:layout_height="11dp"
+            android:layout_marginStart="6dp"
             android:background="@drawable/bg_mark"
             android:minHeight="0dp" />
 
@@ -187,31 +230,55 @@
         </LinearLayout>
 
         <!--
-          状态行。显示**数据生成时间**而不是手机拉取时间 —— 后端定时抓取挂掉时，
+          状态行。平时显示**数据生成时间**而不是手机拉取时间 —— 后端定时抓取挂掉时，
           手机照样能成功拉到同一份旧数据，显示拉取时间的话「后端停了」会被完全掩盖。
           超过 24 小时未更新会转琥珀色。见 WidgetRenderer.applyStatus。
+
+          点过「抓取」之后这里会临时换成那条提示（「✅ 已触发 15:32」），
+          一直到用户下次点「刷新」为止。
+
+          maxWidth 是道保险：这一行是 wrap_content，而它右边就是「抓取」——
+          万一哪条提示特别长，它会去挤中间的七天条，把七个格子压成一堆省略号。
+          72dp 比现在所有提示都宽，正常永远碰不到；真碰到了也只是截断提示，
+          不会连累七天条。
         -->
         <TextView
             android:id="@+id/tv_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
+            android:ellipsize="end"
             android:includeFontPadding="false"
             android:maxLines="1"
+            android:maxWidth="72dp"
             android:minHeight="0dp"
             android:padding="0dp"
             android:textColor="@color/text_muted"
             android:textSize="9dp" />
 
-        <!-- 刷新图标只有 18dp，低于 48dp 的最小触控区，所以点击事件挂在整条顶栏上 -->
-        <ImageView
-            android:id="@+id/btn_refresh"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="4dp"
-            android:contentDescription="@string/action_refresh"
-            android:padding="3dp"
-            android:src="@drawable/ic_refresh" />
+        <!--
+          抓取：让 GitHub Actions 现在就去抓一轮，**不拉数据**。
+          点完状态行会变成「触发中…」，跑完再变成结果。
+          两个按键一左一右的理由见文件头。
+        -->
+        <TextView
+            android:id="@+id/btn_trigger"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/bg_widget_btn"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:paddingStart="6dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/action_trigger"
+            android:textColor="@color/text_secondary"
+            android:textSize="10dp" />
     </LinearLayout>
 
     <!-- ══ 卡片列表（可滚动）══════════════════════════════════════════ -->

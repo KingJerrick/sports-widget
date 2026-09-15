@@ -4,10 +4,16 @@
     <string name="widget_title">赛事日历</string>
     <string name="widget_description">未来七天的 F1、MotoGP、皇马、道奇、勇士、猎鹰、IG 赛程</string>
 
+    <!--
+      小组件顶栏那两个按键。刻意都用动词、都只有两个字，宽度才好对齐 ——
+      它们一左一右摆在顶栏两端，宽窄不一会让中间那条七天迷你条左右晃。
+    -->
     <string name="action_refresh">刷新</string>
+    <string name="action_trigger">抓取</string>
 
-    <!-- 小组件顶栏状态行 -->
-    <string name="status_loading">刷新中…</string>
+    <!-- 小组件顶栏状态行。这两句是点完按键的即时反馈，Worker 跑完就被结果覆盖 -->
+    <string name="status_refreshing">刷新中…</string>
+    <string name="status_triggering">触发中…</string>
     <string name="status_never">尚未获取数据，点此设置</string>
 
     <!-- 星期标签。前两个是相对日期，其余按星期几 -->
@@ -41,19 +47,22 @@
     <string name="hint_endpoint">https://…/calendar.json</string>
     <string name="interval_label">小组件刷新间隔</string>
 
-    <string name="label_gh_token">GitHub token（手动触发抓取用，可留空）</string>
+    <string name="label_gh_token">GitHub token（触发抓取用，可留空）</string>
     <string name="hint_gh_token">github_pat_…</string>
-    <string name="note_gh_token">建一个 fine-grained PAT，只授权这个仓库、只勾 Actions 的读写权限。它只存在这台手机上，不会进仓库、也不会打进 APK。留空的话「保存并刷新」照常能用，只是拉到的还是后端上一次抓的那份。</string>
+    <string name="note_gh_token">建一个 fine-grained PAT，只授权这个仓库、只勾 Actions 的读写权限。它只存在这台手机上，不会进仓库、也不会打进 APK。留空的话「刷新」照常能用，只是拉到的还是后端上一次抓的那份。</string>
 
-    <string name="btn_save">保存并刷新</string>
+    <!-- 每个按键只做一件事：保存不联网、刷新不触发、触发不拉数据 -->
+    <string name="btn_save">保存</string>
+    <string name="btn_refresh_now">刷新</string>
     <string name="btn_test">测试连接</string>
     <string name="btn_trigger">立即触发 GitHub 抓取</string>
 
-    <string name="toast_trigger_ok">已让 GitHub 开始抓取，2 分钟后自动回来取新数据</string>
+    <string name="toast_trigger_ok">已让 GitHub 开始抓取。它要跑一两分钟，之后点「刷新」取新数据</string>
 
     <string name="empty_schedule">未来七天没有赛事</string>
 
-    <string name="toast_saved">已保存，正在刷新小组件…</string>
+    <string name="toast_saved">已保存</string>
+    <string name="toast_refreshing">正在刷新…</string>
 
     <!-- 数据源状态行 -->
     <string name="source_ok">正常</string>

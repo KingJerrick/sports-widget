@@ -104,7 +104,8 @@ class MainActivity : AppCompatActivity() {
             },
         ).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
-        findViewById<Button>(R.id.btn_save).setOnClickListener { saveAndRefresh() }
+        findViewById<Button>(R.id.btn_save).setOnClickListener { saveSettings() }
+        findViewById<Button>(R.id.btn_refresh).setOnClickListener { refreshNow() }
         findViewById<Button>(R.id.btn_test).setOnClickListener { runDiagnostics() }
         findViewById<Button>(R.id.btn_trigger).setOnClickListener { triggerFetch() }
 
@@ -131,48 +132,55 @@ class MainActivity : AppCompatActivity() {
         spInterval.setSelection(intervalOptions.indexOf(minutes).takeIf { it >= 0 } ?: 2)
     }
 
-    private fun saveAndRefresh() {
+    /** 「保存」：只存设置 + 按新间隔重排周期任务，**不联网**。 */
+    private fun saveSettings() {
         Prefs.setEndpoint(this, etEndpoint.text.toString())
         Prefs.setGithubToken(this, etGhToken.text.toString())
         Prefs.setIntervalMinutes(this, intervalOptions[spInterval.selectedItemPosition])
-        RefreshScheduler.schedule(this, immediate = true)
+        // 不带 immediate：想立刻要新数据是「刷新」那个按键的事。
+        // 改完间隔要重排周期任务，所以这一句不能省。
+        RefreshScheduler.schedule(this)
         Toast.makeText(this, getString(R.string.toast_saved), Toast.LENGTH_SHORT).show()
-        tvStatusLine.postDelayed({ renderAll() }, 1500)
+    }
+
+    /** 「刷新」：只去 GitHub 拉一份现成的 calendar.json，**不碰 Actions**。 */
+    private fun refreshNow() {
+        RefreshScheduler.schedule(this, immediate = true)
+        Toast.makeText(this, getString(R.string.toast_refreshing), Toast.LENGTH_SHORT).show()
+        // 拉完状态行上的「数据生成于…」会往前走，但这里没法知道什么时候拉完，
+        // 只能到点重画一次碰运气。没赶上也不要紧，onResume 会再刷一遍。
+        tvStatusLine.postDelayed({ renderAll() }, 3000)
     }
 
     /**
-     * 「立即触发 GitHub 抓取」。
+     * 「立即触发 GitHub 抓取」：只会触发，**不拉数据**。
      *
-     * 按顺序做三件事：
-     *   1. 先把 token 存下来 —— 用户多半是刚填完就直接点这个按钮的，
-     *      而存 token 原本只发生在「保存并刷新」里
-     *   2. 让 GitHub 现在就开始跑 workflow
-     *   3. 排一个 2 分钟后自动回来取数的任务
+     * 以前这里还顺手做两件事 —— 立刻拉一次、再排一个「2 分钟后自动回来取」的
+     * 延时任务。两个都去掉了：
+     *   · 那个延时任务要靠 WorkManager 的 setInitialDelay 加网络约束来兑现，
+     *     而 Doze 和各家的省电策略想推迟就推迟，实测经常根本不执行，
+     *     表现是「点了触发、GitHub 也真跑了，但手机上永远没自动拿到新数据」。
+     *   · 「立刻拉一次」在触发刚发出去时拉到的一定还是旧数据，本来就没用。
      *
-     * **第 3 步不能省。** 触发只是让后端开始抓，手机本地还是旧数据 ——
-     * 不等那两分钟的话，用户点完看到的画面和点之前一模一样，
-     * 只会以为按钮没生效。
-     *
-     * 触发成功后顺带也立刻取一次：万一后端刚好跑完、或者上一次的产物
-     * 还没被拉到，这一步就能立刻拿到新数据，不用等那两分钟。
+     * 现在的约定很简单：点完这个按钮，等一两分钟，再去点「刷新」。
+     * [TriggerRunner] 会把结果同时写给这里和小组件。
      */
     private fun triggerFetch() {
+        // 先把 token 存下来 —— 用户多半是刚填完就直接点这个按钮的，
+        // 而存 token 原本只发生在「保存」里
         Prefs.setGithubToken(this, etGhToken.text.toString())
 
-        tvResult.text = "正在触发…"
+        tvResult.text = TriggerRunner.PENDING
         scope.launch {
-            // 发 HTTP 请求，不能放在主线程
-            val err = withContext(Dispatchers.IO) { GithubDispatch.trigger(this@MainActivity) }
-            if (err == null) {
-                RefreshScheduler.scheduleDelayedFetch(this@MainActivity)
-                RefreshScheduler.schedule(this@MainActivity, immediate = true)
+            val result = TriggerRunner.run(this@MainActivity)
+            if (result.ok) {
                 tvResult.text = getString(R.string.toast_trigger_ok)
                 Toast.makeText(
                     this@MainActivity, getString(R.string.toast_trigger_ok), Toast.LENGTH_LONG,
                 ).show()
             } else {
                 // 失败原因是人话（没配 token / 权限不够 / 认不出仓库），直接显示
-                tvResult.text = "❌ $err"
+                tvResult.text = "❌ ${result.error}"
             }
         }
     }
