@@ -8,11 +8,10 @@
     "mlb       statsapi.mlb.com/api/v1/teams?sportId=1    （道奇 119，id 十几年没变过）",
     "nba       balldontlie 的 /v1/teams                  （勇士 10）",
     "cs2       api.pandascore.co/csgo/teams?search[name]=Team Falcons",
-    "lol       LPL=98767991314006698  LCK=98767991310872058  LEC=98767991302996019",
-    "          LCS=98767991299243165  MSI=98767991325878492  Worlds=98767975604431411",
+    "lol       api.pandascore.co/lol/teams?search[name]=Invictus Gaming  （IG 411）",
     "",
     "── 密钥不在这里 ──────────────────────────────────────────────────",
-    "football / nba / cs2 三家是注册制，key 绝不写进这个文件（仓库是公开的）。",
+    "football / nba / cs2 / lol 四家是注册制，key 绝不写进这个文件（仓库是公开的）。",
     "CI 走 GitHub Actions Secrets，本地走 tools/.env（已 gitignore）。"
   ],
   "f1": {
@@ -234,9 +233,11 @@
     "label": "英雄联盟",
     "team": "Invictus Gaming",
     "teamLabel": "IG",
-    "leagueId": "98767991314006698",
-    "_key": "用的是 Riot 网页端的公开 key，不是本项目自己的凭证，所以没走 Secrets —— 原因见 tools/fetch_calendar.py 里 LOL_API_KEY 的注释",
-    "_durationMinutes": "BO3 约三小时",
+    "_source": "PandaScore（api.pandascore.co/lol/…），注册制，和 CS2 共用 PANDASCORE_TOKEN",
+    "_why_not_lolesports": "原来走 Riot 的 lolesports 接口。它在淘汰赛对阵公布前只给 TBD，而认队是按队名过滤的 —— 2026-09 的 LPL 冒泡赛 IG vs TES 就这么整场漏掉了，而且 sources.lol 还报 ok:true（静默漏抓，最难查）。同一时刻 PandaScore 的对阵已经是真实队名",
+    "pandascoreTeamId": 411,
+    "_pandascoreTeamId": "411 = Invictus Gaming（IG）。查：api.pandascore.co/lol/teams?search[name]=Invictus Gaming。填了就用服务端 filter[opponent_id] 过滤，比按队名本地过滤稳、不受分页影响；留空则退回拉一页再按队名匹配",
+    "_durationMinutes": "BO3 / BO5 约三小时（含赛前和局间）",
     "durationMinutes": 180,
     "_mark": "同上",
     "mark": "IG"

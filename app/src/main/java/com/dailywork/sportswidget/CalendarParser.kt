@@ -165,7 +165,7 @@ object CalendarParser {
                     title = "$label · $name",
                     name = name,
                     nextStartMs = nextStartMs,
-                    detail = buildDetail(evs, status),
+                    detail = buildDetail(evs, status, nowMs),
                     // 后端没给 mark 时退回类别名的前两个字符，至少不是空白
                     mark = data.marks[head.cat.key] ?: head.cat.label.take(2),
                     status = status,
@@ -229,9 +229,13 @@ object CalendarParser {
      *
      * 队伍类写对手（「vs 巴列卡」）；
      * 赛车项目把各场次按时间串起来（「FP1 · FP2 · 排位 · 正赛」）；
-     * **全部打完**时改成列赛果。
+     * **全部打完**时改成列赛果；**系列赛打了一半**时列已打完的比分 + 还剩几场。
+     *
+     * 要 [nowMs] 是因为「打了一半」得一场一场现算：卡片整体的 [EventStatus]
+     * 只有未开始/进行中/已结束三档，四连赛中间那几天它一直停在「未开始/进行中」，
+     * 光看 status 分不出组里有没有已经打完的场次。
      */
-    private fun buildDetail(events: List<Event>, status: EventStatus): String {
+    private fun buildDetail(events: List<Event>, status: EventStatus, nowMs: Long): String {
         val first = events.first()
 
         // ── 全打完了 ────────────────────────────────────────────────────
@@ -262,6 +266,24 @@ object CalendarParser {
         // 对手只在开头写一次，多出来的信息是**场次数**：
         // 看到「vs 红人 · 4 连战」就知道这周还有四场。
         if (first.cat.isTeamSport) {
+            // 系列赛打到一半：把**已经打完那几场的比分**写上，后面缀还剩几场。
+            //
+            // ⚠️ 这段是补的漏。上面那个 FINISHED 分支要整个系列赛打完才走得到，
+            // 而一个四连赛横跨四五天 —— 中间这几天卡片右侧显示的是下一场时间，
+            // 第二行要是只写「vs 红人 · 4 连战」，昨晚那场谁赢了在小组件上就完全
+            // 看不见。App 的赛程页一场一行、各算各的状态，所以那边看得见 ——
+            // 用户看到的就是这两边对不上。
+            //
+            // 「剩 N 场」把正在打的那场也算进去：它还没打完，就还在剩下的里面。
+            // 一场都还没打完、或者后端还没回填比分时落到下面的老写法 —— 那时
+            // 「4 连战」是有用的信息，而「剩 4 场」是废话。
+            val played = events.sortedBy { it.startMs }
+                .filter { it.statusAt(nowMs) == EventStatus.FINISHED }
+            val scores = played.mapNotNull { it.result }
+            if (scores.isNotEmpty()) {
+                return "${scores.joinToString(" · ")} · 剩 ${events.size - played.size} 场"
+            }
+
             return "vs ${first.short}" +
                 if (events.size > 1) " · ${events.size} 连战" else ""
         }

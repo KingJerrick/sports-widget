@@ -25,7 +25,11 @@
     mlb       MLB Stats API       statsapi.mlb.com         免 key（官方）
     nba       balldontlie         api.balldontlie.io       注册制 Authorization
     cs2       PandaScore          api.pandascore.co        注册制 Bearer
-    lol       lolesports          esports-api.lolesports.com  Riot 官方数据
+    lol       PandaScore          api.pandascore.co        注册制 Bearer（同上）
+
+lol 原本走 Riot 的 lolesports 接口（免 key），2026-09 换到 PandaScore ——
+原因是那个接口在淘汰赛对阵确定前只会给 `TBD`，而认队是按队名过滤的，
+结果整场漏抓还报 ok:true。详见下面 fetch_lol 前面那段。
 
 **MotoGP 没有能长期用的注册制接口**：Sportradar 有 MotoGP v2 但是 30 天试用、
 到期断供，正式接入要走企业销售合同；ESPN 不覆盖 MotoGP；TheSportsDB 免费档
@@ -80,16 +84,6 @@ BACK_DAYS = 7
 
 # 部分 CDN / 站点对没有 UA 的请求直接 403
 UA = "sports-widget/1.0 (+https://github.com/KingJerrick/sports-widget)"
-
-# lolesports 网页自己用的公开 key。
-#
-# ⚠️ 这**不是**本项目自己的凭证：任何打开 lolesports.com 开发者工具的人都能看到它，
-# 它只是 Riot 网页客户端的标识。所以没把它收进 Secrets —— 收进去只是把
-# 「轮换时改代码提交」换成「轮换时改 GitHub 设置」，安全性并没有变化，
-# 却会让 fork 了仓库的人跑不起来。
-#
-# 真正的风险是 Riot 轮换它：轮换了改这一行即可，不用动 App。
-LOL_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
 
 # ── 关于卡片图标 ──────────────────────────────────────────────────────────
 # **后端不管图标**，只下发每个类别的字母块标记（mark 字段，如 F1 / GP / 皇马）。
@@ -226,10 +220,9 @@ def to_utc(value: str) -> datetime:
     把各源五花八门的时间串统一成带时区的 datetime。
 
     实际会碰到的形状：
-      "2026-09-13T13:00:00Z"        MLB Stats API、football-data.org
+      "2026-09-13T13:00:00Z"        MLB Stats API、football-data.org、PandaScore
       "2026-03-08T04:00:00+00:00"   OpenF1
       "2026-09-13T14:00:00+0200"    MotoGP Pulselive，偏移量不带冒号
-      "2026-09-12T09:00:00Z"        lolesports
     """
     s = value.strip().replace("Z", "+00:00")
     # Python 3.11 之前不认 "+0200" 这种不带冒号的偏移，补一个冒号
@@ -994,74 +987,139 @@ def fetch_cs2(cfg: dict, lo: datetime, hi: datetime) -> list:
     return events
 
 
-# ══ 英雄联盟 · LoL Esports ═══════════════════════════════════════════════
+# ══ 英雄联盟 · PandaScore ═══════════════════════════════════════════════
 #
-# Riot 的网页接口，带一个网页自己用的公开 key（多年没换过，但随时可能轮换；
-# 真轮换了改上面 LOL_API_KEY 一行就行，不用动 App）。
-# hl=zh-CN 时 blockName 直接是中文，省一层翻译。
+# 2026-09 从 Riot 的 lolesports 接口换过来的，原因是**一次静默漏抓**：
+# LPL 冒泡赛（Regional Finals）9/17 的 IG vs TES，在 lolesports 的 getSchedule
+# 里两支队都还叫 `TBD`（对阵没公布全），而那边的认队逻辑是按
+# `name == "Invictus Gaming"` 过滤的 —— 认不出就整场跳过，sources.lol 还照样
+# 报 ok:true / count:2。**漏了最该看到的那一场，却一点错都不报**，
+# 正是这个项目最怕的那种失败。同一时刻 PandaScore 的对阵已经是真实队名。
+#
+# 代价有两个，都认了：
+#   · 标签变英文（league / serie 都是英文全称，没有 lolesports 的 zh-CN）
+#   · 要 key —— 和 CS2 共用同一个 PANDASCORE_TOKEN，没有新增凭证
 
 def fetch_lol(cfg: dict, lo: datetime, hi: datetime) -> list:
-    league_id = cfg["leagueId"]
-    team_name = cfg["team"]
-    team_label = cfg.get("teamLabel") or team_name
-    url = ("https://esports-api.lolesports.com/persisted/gw/getSchedule"
-           f"?hl=zh-CN&leagueId={league_id}")
-    data = json.loads(http_get(url, headers={"x-api-key": LOL_API_KEY}))
-    dump_raw(data, "lol/lolesports")
+    token = SECRETS.get("PANDASCORE_TOKEN")
+    if not token:
+        raise RuntimeError(
+            "未配置 PANDASCORE_TOKEN。"
+            "仓库 Settings → Secrets and variables → Actions 加一个，"
+            "本地跑就写进 tools/.env"
+        )
 
+    team_id = cfg.get("pandascoreTeamId")
+    team_name = cfg.get("team") or ""
+    team_label = cfg.get("teamLabel") or team_name or "LoL"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # **服务端按对手过滤**（filter[opponent_id]，实测可用）。这里不学 fetch_cs2
+    # 那样拉一页再本地过滤：LoL 全球同时有 60+ 场待打，一页里排前面的全是欧美
+    # 联赛，IG 那场会掉在分页外面 —— 又是一次静默漏抓。填了 pandascoreTeamId
+    # 才用得上；没填就退回拉一页再按队名匹配（cs2 的老路子）。
+    flt = f"&filter[opponent_id]={team_id}" if team_id else ""
+
+    # 三个端点都要打。**running 不能省**：比赛进行中的那三四个小时里，它既不在
+    # upcoming 也不在 past —— 只打那两个的话，卡片会在开赛那一刻从小组件上消失，
+    # 而那恰恰是最想看它的时候。
+    #
+    # 赛果只在 past 里（results 字段），所以 past / running 失败只影响比分和
+    # 进行中，打印一行就够了；upcoming 是主数据，它失败才算这个源失败。
     events = []
-    for ev in data.get("data", {}).get("schedule", {}).get("events", []):
-        if ev.get("type") != "match":
+    for endpoint, per_page, sort in (
+        ("upcoming", 50, "begin_at"),
+        ("running", 10, None),
+        ("past", 30, "-begin_at"),
+    ):
+        url = (f"https://api.pandascore.co/lol/matches/{endpoint}"
+               f"?per_page={per_page}{flt}")
+        if sort:
+            url += f"&sort={sort}"
+        try:
+            data = json.loads(http_get(url, headers=headers))
+        except Exception as exc:  # noqa: BLE001
+            if endpoint == "upcoming":
+                raise
+            # 拿不到过去的比赛只丢赛果，拿不到进行中的只丢那几小时，都不值得整源失败
+            print(f"    · 取 {endpoint} 失败（{type(exc).__name__}），"
+                  f"这次没有{'赛果' if endpoint == 'past' else '进行中的场次'}")
             continue
-        match = ev.get("match") or {}
-        teams = match.get("teams") or []
-        # 只留我们追的队那几场
-        ours = next((t for t in teams if t.get("name") == team_name), None)
-        if not ours:
-            continue
+        dump_raw(data, f"lol/pandascore/{endpoint}")
 
-        start = to_utc(ev["startTime"])
-        if not (lo <= start <= hi):
-            continue
+        # 返回的是一个**数组**，不是对象
+        for m in data or []:
+            opponents = [o.get("opponent") or {} for o in (m.get("opponents") or [])]
+            if len(opponents) < 2:
+                continue
 
-        opp = next((t for t in teams if t is not ours), {})
-        block = ev.get("blockName") or ""
-        league = (ev.get("league") or {}).get("name") or ""
-        best_of = (match.get("strategy") or {}).get("count")
+            # 双保险：id 优先，队名兜底（同 fetch_cs2）
+            ours = next((o for o in opponents if o.get("id") == team_id), None)
+            if not ours and team_name:
+                ours = next((o for o in opponents if o.get("name") == team_name), None)
+            if not ours:
+                continue
 
-        # 打完的**保留**，把比分带上。这个接口本来就把整段赛程都返回回来
-        # （含几个月前打完的），靠上面那个窗口过滤把旧的挡在外面。
-        #
-        # 比分一律「我们-对手」，不跟着主客变 —— 理由同 fetch_football。
-        result, win = None, None
-        if ev.get("state") == "completed":
-            ow = (ours.get("result") or {}).get("gameWins")
-            tw = (opp.get("result") or {}).get("gameWins")
-            if ow is not None and tw is not None:
-                result = f"{ow}-{tw}"
-                win = ow > tw
+            opp = next((o for o in opponents if o is not ours), {})
+            # 对手名是空的 = 对阵还没定。认不出对手就没法显示，跳过。
+            # 按 opponent_id 过滤时正常碰不到，这是给「没填 id、退回按队名匹配」兜底
+            if not (opp.get("name") or "").strip():
+                continue
 
-        suffix = " ".join(x for x in (league, block) if x)
-        events.append(make_event(
-            cat="lol",
-            eid=f"lol-{match.get('id')}",
-            title=f"{team_label} vs {opp.get('name', '?')}"
-                  + (f" · {suffix}" if suffix else "")
-                  + (f" BO{best_of}" if best_of else ""),
-            # 对手的 code 是 IG / AL / BLG 这种 2-3 字符，天然适配小组件
-            short=opp.get("code") or opp.get("name") or "?",
-            start=start,
-            end=start + timedelta(hours=3),
-            venue=None,
-            source="lolesports",
-            rank=RANK_RACE,
-            group=f"lol-{match.get('id')}",
-            group_name=suffix or "比赛",
-            url="https://lolesports.com/schedule",
-            dur=duration_for(cfg),
-            result=result,
-            win=win,
-        ))
+            raw_start = m.get("begin_at")
+            if not raw_start:
+                continue
+            start = to_utc(raw_start)
+            if not (lo <= start <= hi):
+                continue
+
+            # 比分一律「我们-对手」，不跟着主客变 —— 理由同 fetch_football。
+            # past 列表里每场都有一个 results 数组，形如
+            # [{"team_id": 411, "score": 2}, {"team_id": 126059, "score": 3}]
+            result, win = None, None
+            if endpoint == "past":
+                scores = {r.get("team_id"): r.get("score")
+                          for r in (m.get("results") or [])}
+                ow, tw = scores.get(ours.get("id")), scores.get(opp.get("id"))
+                if ow is not None and tw is not None:
+                    result = f"{ow}-{tw}"
+                    win = ow > tw
+
+            # 卡片标签取两级：「LPL · Regional Finals 2026」。只写联赛看不出这是
+            # 常规赛还是冒泡赛；serie 里已经含联赛名时不重复写（Worlds 的 serie
+            # 就叫「Worlds 2026」）
+            league = (m.get("league") or {}).get("name") or ""
+            serie = (m.get("serie") or {}).get("full_name") or ""
+            if league and league.lower() in serie.lower():
+                suffix = serie
+            else:
+                suffix = " · ".join(x for x in (league, serie) if x) or "LoL"
+
+            # number_of_games 就是 BO 几（冒泡赛 BO5、常规赛 BO3）
+            best_of = m.get("number_of_games")
+
+            # group / eid 的前缀用**类别**（lol-）而不是源名（ps-），和其余几个源
+            # 一致；顺带避开「cs2 和 lol 撞上同一个 PandaScore 比赛 id」这类问题
+            # —— 卡片是按 group 归并的，跨类别撞号会把两场比赛并成一张卡。
+            events.append(make_event(
+                cat="lol",
+                eid=f"lol-{m.get('id')}",
+                title=f"{team_label} vs {opp.get('name')} · {suffix}"
+                      + (f" BO{best_of}" if best_of else ""),
+                # 对手的 acronym 是 IG / AL / TES 这种 2-3 个拉丁字符，天然适配小组件
+                short=opp.get("acronym") or opp.get("name") or "?",
+                start=start,
+                # past 才有 end_at；未开赛的是 null，交给 dur 估（同 fetch_cs2）
+                end=to_utc(m["end_at"]) if m.get("end_at") else None,
+                venue=None,
+                source="pandascore",
+                rank=RANK_RACE,
+                group=f"lol-{m.get('id')}",
+                group_name=suffix,
+                dur=duration_for(cfg),
+                result=result,
+                win=win,
+            ))
     return events
 
 

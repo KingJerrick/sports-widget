@@ -38,7 +38,7 @@
 | 🔷 `道奇` | 棒球 · 洛杉矶道奇 | `道奇 · @ 红人` | `vs 红人 · 4 连战` |
 | 🟡 `勇士` | 篮球 · 金州勇士 | `勇士 · NBA` | `vs 湖人` |
 | 🟣 `猎鹰` | CS2 · Team Falcons | `猎鹰 · BLAST Premier` | `vs NAVI` |
-| 🔵 `IG` | 英雄联盟 · Invictus Gaming | `IG · LPL 淘汰赛` | `vs AL` |
+| 🔵 `IG` | 英雄联盟 · Invictus Gaming | `IG · LPL · Regional Finals 2026` | `vs TES` |
 
 > 棒球的卡片标题用北美体育的记法：`@ 红人` 是客场，`vs 巨人` 是主场 —— 一眼能看出
 > 这组系列赛是在谁家打的。同一对手在主客场的两组系列赛是**两张卡**，不会并在一起。
@@ -51,14 +51,27 @@
 |---|---|---|---|
 | 未开始 | 下一场时间 | 现状 | `道奇 · @ 红人` / `09-14 06:40` / `vs 红人 · 4 连战` |
 | 进行中 | `进行中` | 现状 | `F1 · 阿塞拜疆站` / `进行中` / `FP1 · FP2 · FP3 · 排位 · 正赛` |
+| 未开始/进行中·**系列赛打过几场** | 同上两行 | 已打完的比分 + `剩 N 场` | `道奇 · @ 红人` / `明天 06:40` / `4-1 · 剩 3 场` |
 | 已结束·单场 | 比分 `7-3` | `已结束 · vs 教士` | |
 | 已结束·系列赛 | 战绩 `1 胜 2 负` | 每场比分 `6-2 · 3-4 · 4-6` | |
 | 已结束·赛车 | 冠军代号 `ANT`（F1）／`已结束`（MotoGP） | `已结束 · FP1 · … · 正赛` | |
+
+**系列赛打过第一场之后，卡片不会一直等到整个系列赛打完才报比分。** 四连赛横跨
+四五天，中间这几天卡片整体的状态一直是「未开始/进行中」（组里还有没开打的场次），
+所以第二行改成列**已经打完那几场的比分**，后面缀还剩几场 —— `4-1 · 剩 3 场`。
+右侧仍然是下一场的时间：那才是这张卡首先要回答的问题。「剩 N 场」把正在打的那场
+也算在内（它还没打完）。一场都没打完时还是老写法 `vs 红人 · 4 连战` —— 那时
+「4 连战」有用，「剩 4 场」是废话。
 
 **「进行中」是估的，不是查的。** 判据是「开赛时刻 + 一个典型时长」——
 棒球 4 小时、F1 正赛 2 小时、MotoGP 正赛 1 小时，其余见 `data/config.json` 里的
 `durations` / `durationMinutes`。打了 12 局的棒球会超时、下雨中断的足球会提前，
 都认了 —— 精确的实时状态得一场一场单独去查，为这个小组件不值当。
+
+不过「这场还在进行」这件事本身得在数据里，所以 PandaScore 那两个源（CS2 / 英雄联盟）
+要连 `upcoming`、`running`、`past` **三个端点**。`running` 不能省：比赛进行中的那三四个
+小时里，它既不在「未来」也不在「过去」，只打前两个的话，卡片会在开赛那一刻从小组件上
+消失 —— 而那恰恰是最想看它的时候。
 
 **状态是 App 现算的，不是后端下发的。** 抓取每 6 小时才跑一次，后端算好的
 「进行中」写进 JSON 之后，等手机读到那场比赛早打完了。所以后端只下发**时长**和**赛果**。
@@ -89,13 +102,15 @@
 | 棒球 · 道奇 | [MLB Stats API](https://statsapi.mlb.com) `statsapi.mlb.com` | 🟢 **MLB 官方接口**，没有比它更权威的 | 不要 |
 | 篮球 · 勇士 | [balldontlie](https://balldontlie.io) `api.balldontlie.io` | 🟢 注册制，免费档 5 次/分钟 | **要** |
 | CS2 · 猎鹰 | [PandaScore](https://www.pandascore.co) `api.pandascore.co` | 🟢 注册制，免费档 1000 次/小时 | **要** |
-| 英雄联盟 · IG | `esports-api.lolesports.com` | 🟡 Riot 官方数据，但用的是网页公开 key，可能轮换 | 不要 |
+| 英雄联盟 · IG | [PandaScore](https://www.pandascore.co) `api.pandascore.co` | 🟢 注册制，和 CS2 共用一个 key | **要** |
 
 ### 为什么从「全部免注册」改成了「六个注册制」
 
 2026 年 9 月，**足球和 CS2 一起挂了**：Sofascore 的网页私有接口对 GitHub Actions 的出口 IP 返回 `403 Forbidden`。同一份代码、同一个 UA，9 月 11 日那次 CI 还是好的，9 月 12 日就全红。在本机（住宅 IP）上同一个请求是 200 —— 这是按 TLS 指纹 / 出口 IP 做的风控。
 
 这正是「用私有接口换免注册」的代价，所以能换的都换了。换来的是**有文档、有承诺、key 走 header** 的接口。
+
+**为什么英雄联盟也换了（2026-09，从 lolesports 换到 PandaScore）**：lolesports 不是挂了，是**漏**。LPL 冒泡赛 9/17 的 IG vs TES，在它的 `getSchedule` 里两支队都还叫 `TBD`（对阵没公布全），而认队逻辑是按队名过滤的 —— 认不出就整场跳过，`sources.lol` 还照样报 `ok: true / count: 2`。**最该看到的那一场没抓到，却一点错都不报**，和 MotoGP 哪天挂掉会在「数据源状态」里变红完全不是一回事。同一时刻 PandaScore 的对阵已经是真实队名。代价是标签变英文（它没有 zh-CN），换来的是淘汰赛对阵不会因为上游写 TBD 就整场消失。
 
 **为什么 MotoGP 没换**：市面上没有能长期用的注册制 MotoGP 接口 —— Sportradar 有 MotoGP v2，但只有 30 天试用、到期断供，正式接入要走企业销售合同；ESPN 不覆盖 MotoGP；TheSportsDB 免费档搜不到。所以它继续留在 Pulselive，在下面单独标成已知风险源。
 
@@ -127,7 +142,7 @@
 | api-sports.io 的 F1 | 只给正赛，一个周末的练习赛/排位全没有 |
 | Jolpica（原来的 F1 源） | 能用且稳定，但 OpenF1 的场次字段更全，换掉了 |
 
-### 配置 API Key（三个注册制源要用）
+### 配置 API Key（四个注册制源要用，共三个 key）
 
 **Key 只以 GitHub Actions Secret 的形式存在，仓库里一个都不留。** 手机端更是完全碰不到 key —— 它下载的还是那一个公开的 `calendar.json`，所以**换 key、换源都不用重装 APK**。
 
@@ -138,10 +153,10 @@
    | 变量名 | 去哪注册 | 免费档 |
    |---|---|---|
    | `FOOTBALL_DATA_TOKEN` | [football-data.org](https://www.football-data.org/client/register) | 10 次/分钟 |
-   | `PANDASCORE_TOKEN` | [app.pandascore.co](https://app.pandascore.co/signup) | 1000 次/小时 |
+   | `PANDASCORE_TOKEN` | [app.pandascore.co](https://app.pandascore.co/signup) | 1000 次/小时，**CS2 + 英雄联盟共用** |
    | `BALLDONTLIE_KEY` | [app.balldontlie.io](https://app.balldontlie.io) | 5 次/分钟 |
 
-   本脚本每 6 小时才跑一次、每个源只发 1~2 个请求，所以免费档的余量绰绰有余。
+   本脚本每 6 小时才跑一次、每个源只发 1~3 个请求，所以免费档的余量绰绰有余。
 
 2. 仓库 → **Settings → Secrets and variables → Actions → New repository secret**，名字就用上表那三个，值粘进去。
 
@@ -149,7 +164,7 @@
 
 **在本机跑**：把 `tools/.env.example` 复制成 `tools/.env` 填进去。`tools/.env` 已经在 `.gitignore` 里 —— **那个文件绝不能提交**。
 
-没配 key 不会让整个流程挂掉：缺哪个 key，对应的那一类失败并在「数据源状态」里写明原因，其余几个免 key 的源（F1 / MotoGP / 棒球 / 英雄联盟）照常出数据。
+没配 key 不会让整个流程挂掉：缺哪个 key，对应的那一类失败并在「数据源状态」里写明原因，其余几个免 key 的源（F1 / MotoGP / 棒球）照常出数据。
 
 > ⚠️ 两家的 Authorization 头格式不一样，写反了都会 401 而且报错信息看不出区别：
 > **PandaScore 要 `Bearer ` 前缀，balldontlie 不要。**
@@ -474,7 +489,7 @@ sports-widget/
    | 棒球 | `mlbTeamId` | `statsapi.mlb.com/api/v1/teams?sportId=1` |
    | 篮球 | `balldontlieTeamId` | balldontlie 的 `/v1/teams` |
    | CS2 | `pandascoreTeamId` | `api.pandascore.co/csgo/teams?search[name]=队伍名`（留空则按队名匹配，也能用） |
-   | LoL | `leagueId` | 文件开头的 `_comment` 里列了 LPL/LCK/LEC/LCS/MSI/Worlds |
+   | LoL | `pandascoreTeamId` | `api.pandascore.co/lol/teams?search[name]=队伍名`（留空则按队名匹配，也能用） |
 
 3. 顺手改 `teamLabel`（卡片标题和 chip 上用）和 `mark`（没传图标时显示的字母块，**最多 3 个汉字**）
 4. 换足球/棒球/篮球的对手时，还要补 `opponentCn` 里的中文简称 —— 查不到会直接显示三字母代号，不会出错，只是不好看
@@ -509,6 +524,8 @@ sports-widget/
 
 **棒球的「整体」是系列赛，不是比赛。** 这是同一个原则的另一个例子：道奇一周 6 场，一场一张卡的话 7 天窗口里能占 7 张，把一整周只有一场的 F1/MotoGP 全挤下去。所以 MLB 按系列赛分组，判据是 `seriesGameNumber == 1`（不能用「对手变了就换组」—— 同一对手在主客场的两组不该并起来）。第二行因此多一个场次数：`vs 红人 · 4 连战`。注意**卡片第二行对队伍类只写一次对手**，不会像赛车项目那样把 short 串起来（四个「红人」串成一行没有信息量）。
 
+系列赛打完一场之后，第二行换成已打完的比分 + 还剩几场（`4-1 · 剩 3 场`）。**这一步不能省**：卡片整体的状态那几天一直是「未开始/进行中」（组里还有没开打的场次），而报赛果的分支只在整张卡结束时才走得到 —— 不单独判一次「组里有没有已经打完的场次」，就要等整个系列赛落幕才第一次看见比分，中间那几天昨晚谁赢了在小组件上完全看不出来（App 的赛程页一场一行、各算各的状态，所以那边看得见，两边对不上）。
+
 **卡片第二行放不下时会按重要性取舍，不是简单截断。** MotoGP 一个周末有 FP1/练习/FP2/Q1/Q2/冲刺/热身/正赛八节，全列出来一行放不下。规则是：先去重（Q1、Q2 都叫「排位」），还超就保正赛和排位、让练习赛让位（正赛 3 > 排位 2 > 练习 1）。直接截断的话会把最重要的那几节切掉，而且不报错、不崩，只是看不见。
 
 **可滚动用 ListView + RemoteViewsService 实现。** 安卓的小组件只有 `ListView`/`GridView` 这类「集合控件」能滚动，而且行内容不能直接塞进 RemoteViews，得由一个 `RemoteViewsService` 逐行提供。见 `WidgetService.kt`。顶栏（刷新 / 品牌条 / 七天迷你条 / 状态 / 抓取）是 ListView 外面的普通控件，这在这个模式里是合法的 —— 顶栏那两个按键也是普通的 `TextView`，只是挂了 `setOnClickPendingIntent`，因为 RemoteViews 里没有 `Button` 可用。
@@ -521,7 +538,7 @@ sports-widget/
 
 **每个源的重试是刻意的。** 这些站点都在 CDN 后面，实测会偶发 TLS 握手超时（同一台机器同一个 URL，上一次成功、这一次超时）。不重试的话，一次网络抖动就会让某一类赛事整天没有数据 —— 而 App 端看起来只是「今天没比赛」，根本看不出是抓取失败。
 
-**为什么把 key 全放在 header 而不是 URL。** 有些服务商习惯用 `?api_key=xxx`，但那在本项目里是个陷阱：抓取失败时错误消息会被写进**公开的** `data/calendar.json`，URL 里的 key 就这么永久留在 git 历史里了。所以三个注册制源全走 header（`X-Auth-Token` / `Authorization`），并且在写文件前还会再扫一遍产物。
+**为什么把 key 全放在 header 而不是 URL。** 有些服务商习惯用 `?api_key=xxx`，但那在本项目里是个陷阱：抓取失败时错误消息会被写进**公开的** `data/calendar.json`，URL 里的 key 就这么永久留在 git 历史里了。所以四个注册制源全走 header（`X-Auth-Token` / `Authorization`），并且在写文件前还会再扫一遍产物。
 
 ---
 
@@ -533,8 +550,7 @@ sports-widget/
 - [football-data.org](https://www.football-data.org/documentation/quickstart) —— 足球，注册制
 - [MLB Stats API](https://github.com/toddrob99/MLB-StatsAPI/wiki) —— 棒球，MLB 官方，免 key（社区整理的端点说明）
 - [balldontlie](https://docs.balldontlie.io/) —— NBA，注册制
-- [PandaScore](https://developers.pandascore.co/docs/introduction) —— 电竞（CS2 走 `/csgo/` 路由），注册制
-- [LoL Esports](https://lolesports.com/schedule)
+- [PandaScore](https://developers.pandascore.co/docs/introduction) —— 电竞（CS2 走 `/csgo/`、英雄联盟走 `/lol/`），注册制
 - [MotoGP Pulselive](https://api.motogp.pulselive.com/motogp/v1/events?seasonYear=2026&isFinished=false) —— ⚠️ 站点前端私有 API，无公开文档，见上面的「已知风险源」
 
-历史上用过、已经换掉的：[Jolpica](https://api.jolpi.ca/ergast/)（F1，换成了 OpenF1）、[Sofascore](https://www.sofascore.com/)（足球 + CS2，2026-09 对 CI 出口 IP 封了 403）。
+历史上用过、已经换掉的：[Jolpica](https://api.jolpi.ca/ergast/)（F1，换成了 OpenF1）、[Sofascore](https://www.sofascore.com/)（足球 + CS2，2026-09 对 CI 出口 IP 封了 403）、[LoL Esports](https://lolesports.com/schedule)（英雄联盟，2026-09 换成了 PandaScore —— 它不是挂了，是淘汰赛对阵没公布前只给 `TBD`，见上面那一段）。
