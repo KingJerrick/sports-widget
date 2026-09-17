@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-17T16:59:06Z",
+  "generated_at": "2026-09-17T21:21:44Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -469,8 +469,8 @@
       "groupName": "@ 红人",
       "url": null,
       "dur": 240,
-      "result": null,
-      "win": null
+      "result": "8-2",
+      "win": true
     },
     {
       "id": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe-3b6dc737-ed42-48c6-9cea-61662f2957b7",
