@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T10:57:47Z",
+  "generated_at": "2026-09-19T12:50:08Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -393,7 +393,7 @@
       "title": "IG vs JD Gaming · LPL · Regional Finals 2026 BO5",
       "short": "JDG",
       "start": "2026-09-19T09:06:52Z",
-      "end": null,
+      "end": "2026-09-19T12:45:13Z",
       "venue": null,
       "source": "pandascore",
       "rank": 3,
@@ -401,8 +401,8 @@
       "groupName": "LPL · Regional Finals 2026",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
+      "result": "3-1",
+      "win": true
     },
     {
       "id": "mgp-1d659e29-247a-402c-ba1e-33fa14670cbe-bc040e80-2312-4906-8901-2ed9a1c0e6f7",
