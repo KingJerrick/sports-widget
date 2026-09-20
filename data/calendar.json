@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-20T04:53:10Z",
+  "generated_at": "2026-09-20T11:22:25Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -28,7 +28,7 @@
     },
     "motogp": {
       "ok": true,
-      "count": 50,
+      "count": 49,
       "error": null,
       "enabled": true
     },
@@ -64,23 +64,6 @@
     }
   },
   "events": [
-    {
-      "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-f5e930bc-229e-477c-908f-d7d5fc5b7677",
-      "cat": "motogp",
-      "title": "MotoGP RSM站 · 热身赛",
-      "short": "热身",
-      "start": "2026-09-13T07:40:00Z",
-      "end": "2026-09-13T07:50:00Z",
-      "venue": "Misano World Circuit Marco Simoncelli",
-      "source": "pulselive",
-      "rank": 1,
-      "group": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6",
-      "groupName": "RSM站",
-      "url": null,
-      "dur": 30,
-      "result": null,
-      "win": null
-    },
     {
       "id": "mgp-537f71f7-25ea-4cb2-a259-70b0da576cc6-df335623-1e01-4218-8fa6-5f51b9d32fa8",
       "cat": "motogp",
