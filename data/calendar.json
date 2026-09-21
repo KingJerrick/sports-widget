@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-21T03:19:32Z",
+  "generated_at": "2026-09-21T04:54:39Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -22,7 +22,7 @@
   "sources": {
     "f1": {
       "ok": true,
-      "count": 31,
+      "count": 32,
       "error": null,
       "enabled": true
     },
@@ -2094,6 +2094,23 @@
       "short": "FP1",
       "start": "2026-11-20T00:30:00Z",
       "end": "2026-11-20T01:30:00Z",
+      "venue": "Las Vegas",
+      "source": "openf1",
+      "rank": 1,
+      "group": "f1-1300",
+      "groupName": "美国站",
+      "url": "https://www.formula1.com/en/racing/2026",
+      "dur": 60,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "f1-11414",
+      "cat": "f1",
+      "title": "F1 美国站 · 第二次练习",
+      "short": "FP2",
+      "start": "2026-11-20T04:00:00Z",
+      "end": "2026-11-20T05:00:00Z",
       "venue": "Las Vegas",
       "source": "openf1",
       "rank": 1,
