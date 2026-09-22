@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-22T04:54:50Z",
+  "generated_at": "2026-09-22T11:37:11Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -28,7 +28,7 @@
     },
     "motogp": {
       "ok": true,
-      "count": 50,
+      "count": 53,
       "error": null,
       "enabled": true
     },
@@ -2169,6 +2169,57 @@
       "groupName": "美国站",
       "url": "https://www.formula1.com/en/racing/2026",
       "dur": 60,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-c7f7626b-807f-4a6f-813e-7ad2c68302a3-2a30a9c1-2b5f-4479-bca4-6f176f9d773a",
+      "cat": "motogp",
+      "title": "MotoGP POR站 · 第二次练习",
+      "short": "FP2",
+      "start": "2026-11-21T10:10:00Z",
+      "end": "2026-11-21T10:40:00Z",
+      "venue": "Autódromo Internacional do Algarve",
+      "source": "pulselive",
+      "rank": 1,
+      "group": "mgp-c7f7626b-807f-4a6f-813e-7ad2c68302a3",
+      "groupName": "POR站",
+      "url": null,
+      "dur": 45,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-c7f7626b-807f-4a6f-813e-7ad2c68302a3-4727b724-9cb9-4d71-a1be-73d368a8d11a",
+      "cat": "motogp",
+      "title": "MotoGP POR站 · 排位赛第一节",
+      "short": "排位",
+      "start": "2026-11-21T10:50:00Z",
+      "end": "2026-11-21T11:05:00Z",
+      "venue": "Autódromo Internacional do Algarve",
+      "source": "pulselive",
+      "rank": 2,
+      "group": "mgp-c7f7626b-807f-4a6f-813e-7ad2c68302a3",
+      "groupName": "POR站",
+      "url": null,
+      "dur": 30,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-c7f7626b-807f-4a6f-813e-7ad2c68302a3-df227e8e-d272-4b5d-a05f-5ec75e48dbfa",
+      "cat": "motogp",
+      "title": "MotoGP POR站 · 排位赛第二节",
+      "short": "排位",
+      "start": "2026-11-21T11:15:00Z",
+      "end": "2026-11-21T11:30:00Z",
+      "venue": "Autódromo Internacional do Algarve",
+      "source": "pulselive",
+      "rank": 2,
+      "group": "mgp-c7f7626b-807f-4a6f-813e-7ad2c68302a3",
+      "groupName": "POR站",
+      "url": null,
+      "dur": 30,
       "result": null,
       "win": null
     }
