@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-29T05:43:01Z",
+  "generated_at": "2026-09-29T12:51:31Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -28,7 +28,7 @@
     },
     "motogp": {
       "ok": true,
-      "count": 50,
+      "count": 53,
       "error": null,
       "enabled": true
     },
@@ -2220,6 +2220,57 @@
       "groupName": "卡塔尔站",
       "url": "https://www.formula1.com/en/racing/2026",
       "dur": 60,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-6ad2859f-51c4-459e-9714-338814e7537f-fb21f35b-ee41-496d-996e-46362bff404c",
+      "cat": "motogp",
+      "title": "MotoGP VAL站 · 第二次练习",
+      "short": "FP2",
+      "start": "2026-11-28T09:10:00Z",
+      "end": "2026-11-28T09:40:00Z",
+      "venue": "Circuit Ricardo Tormo",
+      "source": "pulselive",
+      "rank": 1,
+      "group": "mgp-6ad2859f-51c4-459e-9714-338814e7537f",
+      "groupName": "VAL站",
+      "url": null,
+      "dur": 45,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-6ad2859f-51c4-459e-9714-338814e7537f-00c5fa9e-b664-4bad-b40f-f197c1e9f3ef",
+      "cat": "motogp",
+      "title": "MotoGP VAL站 · 排位赛第一节",
+      "short": "排位",
+      "start": "2026-11-28T09:50:00Z",
+      "end": "2026-11-28T10:05:00Z",
+      "venue": "Circuit Ricardo Tormo",
+      "source": "pulselive",
+      "rank": 2,
+      "group": "mgp-6ad2859f-51c4-459e-9714-338814e7537f",
+      "groupName": "VAL站",
+      "url": null,
+      "dur": 30,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-6ad2859f-51c4-459e-9714-338814e7537f-10c658ee-9276-48fd-977c-c9c739f1db83",
+      "cat": "motogp",
+      "title": "MotoGP VAL站 · 排位赛第二节",
+      "short": "排位",
+      "start": "2026-11-28T10:15:00Z",
+      "end": "2026-11-28T10:30:00Z",
+      "venue": "Circuit Ricardo Tormo",
+      "source": "pulselive",
+      "rank": 2,
+      "group": "mgp-6ad2859f-51c4-459e-9714-338814e7537f",
+      "groupName": "VAL站",
+      "url": null,
+      "dur": 30,
       "result": null,
       "win": null
     }
