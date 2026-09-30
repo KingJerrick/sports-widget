@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-30T05:31:34Z",
+  "generated_at": "2026-09-30T12:33:19Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -28,7 +28,7 @@
     },
     "motogp": {
       "ok": true,
-      "count": 54,
+      "count": 55,
       "error": null,
       "enabled": true
     },
@@ -52,7 +52,7 @@
     },
     "cs2": {
       "ok": true,
-      "count": 1,
+      "count": 0,
       "error": null,
       "enabled": true
     },
@@ -418,23 +418,6 @@
       "groupName": "vs ATL/PHI",
       "url": null,
       "dur": 240,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "ps-1711369",
-      "cat": "cs2",
-      "title": "猎鹰 vs TYLOO · Season 24 2026 · Group Stage",
-      "short": "TYLOO",
-      "start": "2026-10-03T11:30:00Z",
-      "end": null,
-      "venue": null,
-      "source": "pandascore",
-      "rank": 3,
-      "group": "ps-1711369",
-      "groupName": "Season 24 2026 · Group Stage",
-      "url": null,
-      "dur": 180,
       "result": null,
       "win": null
     },
@@ -2356,6 +2339,23 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-6ad2859f-51c4-459e-9714-338814e7537f-c6ad4ab8-f150-48c9-af49-ce5eed2128d5",
+      "cat": "motogp",
+      "title": "MotoGP VAL站 · 热身赛",
+      "short": "热身",
+      "start": "2026-11-29T08:40:00Z",
+      "end": "2026-11-29T08:50:00Z",
+      "venue": "Circuit Ricardo Tormo",
+      "source": "pulselive",
+      "rank": 1,
+      "group": "mgp-6ad2859f-51c4-459e-9714-338814e7537f",
+      "groupName": "VAL站",
+      "url": null,
+      "dur": 30,
       "result": null,
       "win": null
     }
