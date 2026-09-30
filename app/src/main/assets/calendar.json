@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-30T12:33:19Z",
+  "generated_at": "2026-09-30T22:15:12Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -22,13 +22,13 @@
   "sources": {
     "f1": {
       "ok": true,
-      "count": 39,
+      "count": 40,
       "error": null,
       "enabled": true
     },
     "motogp": {
       "ok": true,
-      "count": 55,
+      "count": 56,
       "error": null,
       "enabled": true
     },
@@ -2356,6 +2356,40 @@
       "groupName": "VAL站",
       "url": null,
       "dur": 30,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "mgp-6ad2859f-51c4-459e-9714-338814e7537f-6e389f60-9115-472c-b943-b86a2d9a0a62",
+      "cat": "motogp",
+      "title": "MotoGP VAL站 · 正赛",
+      "short": "正赛",
+      "start": "2026-11-29T13:00:00Z",
+      "end": "2026-11-29T13:00:00Z",
+      "venue": "Circuit Ricardo Tormo",
+      "source": "pulselive",
+      "rank": 3,
+      "group": "mgp-6ad2859f-51c4-459e-9714-338814e7537f",
+      "groupName": "VAL站",
+      "url": null,
+      "dur": 60,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "f1-11428",
+      "cat": "f1",
+      "title": "F1 卡塔尔站 · 正赛",
+      "short": "正赛",
+      "start": "2026-11-29T16:00:00Z",
+      "end": "2026-11-29T18:00:00Z",
+      "venue": "Lusail",
+      "source": "openf1",
+      "rank": 3,
+      "group": "f1-1301",
+      "groupName": "卡塔尔站",
+      "url": "https://www.formula1.com/en/racing/2026",
+      "dur": 120,
       "result": null,
       "win": null
     }
