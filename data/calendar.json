@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-04T21:23:37Z",
+  "generated_at": "2026-10-05T05:38:33Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -333,8 +333,8 @@
       "groupName": "vs ATL",
       "url": null,
       "dur": 240,
-      "result": null,
-      "win": null
+      "result": "2-3",
+      "win": false
     },
     {
       "id": "ps-1711437",
