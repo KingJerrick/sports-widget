@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-16T21:06:57Z",
+  "generated_at": "2026-10-17T04:24:19Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -28,7 +28,7 @@
     },
     "motogp": {
       "ok": true,
-      "count": 46,
+      "count": 43,
       "error": null,
       "enabled": true
     },
@@ -46,7 +46,7 @@
     },
     "nba": {
       "ok": true,
-      "count": 23,
+      "count": 24,
       "error": null,
       "enabled": true
     },
@@ -64,57 +64,6 @@
     }
   },
   "events": [
-    {
-      "id": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c-024495bb-a689-4053-9b2b-e822fd1e97b1",
-      "cat": "motogp",
-      "title": "MotoGP INA站 · 第二次练习",
-      "short": "FP2",
-      "start": "2026-10-10T02:10:00Z",
-      "end": "2026-10-10T02:43:00Z",
-      "venue": "Pertamina Mandalika International Circuit",
-      "source": "pulselive",
-      "rank": 1,
-      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
-      "groupName": "INA站",
-      "url": null,
-      "dur": 45,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c-96ea2d7a-9d8a-4976-a1d8-b1035b97fe03",
-      "cat": "motogp",
-      "title": "MotoGP INA站 · 排位赛第一节",
-      "short": "排位",
-      "start": "2026-10-10T02:55:00Z",
-      "end": "2026-10-10T03:10:00Z",
-      "venue": "Pertamina Mandalika International Circuit",
-      "source": "pulselive",
-      "rank": 2,
-      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
-      "groupName": "INA站",
-      "url": null,
-      "dur": 30,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c-ee15044f-d0f2-43c8-9126-4c063702345e",
-      "cat": "motogp",
-      "title": "MotoGP INA站 · 排位赛第二节",
-      "short": "排位",
-      "start": "2026-10-10T03:20:00Z",
-      "end": "2026-10-10T03:35:00Z",
-      "venue": "Pertamina Mandalika International Circuit",
-      "source": "pulselive",
-      "rank": 2,
-      "group": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c",
-      "groupName": "INA站",
-      "url": null,
-      "dur": 30,
-      "result": null,
-      "win": null
-    },
     {
       "id": "mgp-877c27e8-70e0-4847-bacf-2290d7cc903c-eafef520-3755-4cbb-a7de-a449b4af523a",
       "cat": "motogp",
@@ -2115,6 +2064,23 @@
       "source": "balldontlie",
       "rank": 3,
       "group": "nba-21718270",
+      "groupName": "NBA",
+      "url": null,
+      "dur": 180,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "nba-21718280",
+      "cat": "nba",
+      "title": "勇士(客) vs Indiana Pacers",
+      "short": "步行者",
+      "start": "2026-12-16T00:00:00Z",
+      "end": null,
+      "venue": null,
+      "source": "balldontlie",
+      "rank": 3,
+      "group": "nba-21718280",
       "groupName": "NBA",
       "url": null,
       "dur": 180,
