@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-20T21:36:24Z",
+  "generated_at": "2026-10-21T04:44:52Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -34,7 +34,7 @@
     },
     "football": {
       "ok": true,
-      "count": 13,
+      "count": 14,
       "error": null,
       "enabled": true
     },
@@ -46,7 +46,7 @@
     },
     "nba": {
       "ok": true,
-      "count": 25,
+      "count": 26,
       "error": null,
       "enabled": true
     },
@@ -1945,6 +1945,40 @@
       "source": "balldontlie",
       "rank": 3,
       "group": "nba-21718301",
+      "groupName": "NBA",
+      "url": null,
+      "dur": 180,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "fd-564796",
+      "cat": "football",
+      "title": "皇马(客) vs RC Deportivo La Coruña · 西甲",
+      "short": "DEP",
+      "start": "2026-12-20T00:00:00Z",
+      "end": null,
+      "venue": null,
+      "source": "football-data",
+      "rank": 3,
+      "group": "fd-564796",
+      "groupName": "西甲",
+      "url": null,
+      "dur": 120,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "nba-21718319",
+      "cat": "nba",
+      "title": "勇士(客) vs Milwaukee Bucks",
+      "short": "雄鹿",
+      "start": "2026-12-20T00:00:00Z",
+      "end": null,
+      "venue": null,
+      "source": "balldontlie",
+      "rank": 3,
+      "group": "nba-21718319",
       "groupName": "NBA",
       "url": null,
       "dur": 180,
