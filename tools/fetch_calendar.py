@@ -837,10 +837,17 @@ def fetch_nba(cfg: dict, lo: datetime, hi: datetime) -> list:
         # 打完的**保留**（以前是跳过的），把比分带上
         finished = (g.get("status") or "").lower().startswith("final")
 
-        raw_start = g.get("date")
+        # date 只是美国当地的比赛日期，转成 UTC 零点会让北京时间提前一天。
+        # datetime 才是带时区的开赛时刻；时间待定时不能拿日期冒充。
+        raw_start = g.get("datetime")
         if not raw_start:
             continue
-        start = to_utc(raw_start)
+        try:
+            start = datetime.fromisoformat(raw_start.strip().replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            continue
+        if start.tzinfo is None:
+            continue
         if not (lo <= start <= hi):
             continue
 
