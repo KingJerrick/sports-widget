@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-25T02:04:29Z",
+  "generated_at": "2026-10-25T04:39:51Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -46,7 +46,7 @@
     },
     "nba": {
       "ok": true,
-      "count": 27,
+      "count": 28,
       "error": null,
       "enabled": true
     },
@@ -367,16 +367,16 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
+      "result": "122-131",
+      "win": false
     },
     {
       "id": "mgp-66961f05-2454-4455-9d65-f99c49d25b17-80982421-6539-4108-84c7-cb87f188c505",
       "cat": "motogp",
       "title": "MotoGP AUS站 · 正赛",
       "short": "正赛",
-      "start": "2026-10-25T03:00:00Z",
-      "end": "2026-10-25T03:00:00Z",
+      "start": "2026-10-25T05:30:00Z",
+      "end": "2026-10-25T05:30:00Z",
       "venue": "Phillip Island",
       "source": "pulselive",
       "rank": 3,
@@ -1979,6 +1979,23 @@
       "source": "balldontlie",
       "rank": 3,
       "group": "nba-21718334",
+      "groupName": "NBA",
+      "url": null,
+      "dur": 180,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "nba-21718349",
+      "cat": "nba",
+      "title": "勇士(客) vs LA Clippers",
+      "short": "快船",
+      "start": "2026-12-24T03:30:00Z",
+      "end": null,
+      "venue": null,
+      "source": "balldontlie",
+      "rank": 3,
+      "group": "nba-21718349",
       "groupName": "NBA",
       "url": null,
       "dur": 180,
