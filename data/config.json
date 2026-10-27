@@ -54,7 +54,7 @@
     "mark": "GP"
   },
   "football": {
-    "enabled": true,
+    "enabled": false,
     "label": "足球",
     "team": "Real Madrid",
     "teamLabel": "皇马",

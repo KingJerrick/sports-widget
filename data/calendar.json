@@ -4,7 +4,6 @@
   "labels": {
     "f1": "F1",
     "motogp": "MotoGP",
-    "football": "皇马",
     "mlb": "道奇",
     "nba": "勇士",
     "cs2": "猎鹰",
@@ -13,7 +12,6 @@
   "marks": {
     "f1": "F1",
     "motogp": "GP",
-    "football": "皇马",
     "mlb": "道奇",
     "nba": "勇士",
     "cs2": "猎鹰",
@@ -29,12 +27,6 @@
     "motogp": {
       "ok": true,
       "count": 40,
-      "error": null,
-      "enabled": true
-    },
-    "football": {
-      "ok": true,
-      "count": 12,
       "error": null,
       "enabled": true
     },
@@ -64,23 +56,6 @@
     }
   },
   "events": [
-    {
-      "id": "fd-575370",
-      "cat": "football",
-      "title": "皇马(主) vs RB Leipzig · 欧冠",
-      "short": "RBL",
-      "start": "2026-10-21T19:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-575370",
-      "groupName": "欧冠",
-      "url": null,
-      "dur": 120,
-      "result": "4-1",
-      "win": true
-    },
     {
       "id": "nba-21717859",
       "cat": "nba",
@@ -405,23 +380,6 @@
       "win": null
     },
     {
-      "id": "fd-564723",
-      "cat": "football",
-      "title": "皇马(客) vs FC Barcelona · 西甲",
-      "short": "FCB",
-      "start": "2026-10-25T20:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564723",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
-      "result": "2-1",
-      "win": true
-    },
-    {
       "id": "nba-21717970",
       "cat": "nba",
       "title": "勇士(客) vs Denver Nuggets",
@@ -694,23 +652,6 @@
       "win": null
     },
     {
-      "id": "fd-564734",
-      "cat": "football",
-      "title": "皇马(客) vs Real Racing Club de Santander · 西甲",
-      "short": "SAN",
-      "start": "2026-11-01T15:15:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564734",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
-      "result": null,
-      "win": null
-    },
-    {
       "id": "f1-11404",
       "cat": "f1",
       "title": "F1 墨西哥站 · 正赛",
@@ -758,23 +699,6 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "fd-575386",
-      "cat": "football",
-      "title": "皇马(客) vs PAE AEK · 欧冠",
-      "short": "AEK",
-      "start": "2026-11-04T17:45:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-575386",
-      "groupName": "欧冠",
-      "url": null,
-      "dur": 120,
       "result": null,
       "win": null
     },
@@ -962,23 +886,6 @@
       "groupName": "巴西站",
       "url": "https://www.formula1.com/en/racing/2026",
       "dur": 60,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "fd-564741",
-      "cat": "football",
-      "title": "皇马(客) vs Valencia CF · 西甲",
-      "short": "瓦伦",
-      "start": "2026-11-07T20:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564741",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
       "result": null,
       "win": null
     },
@@ -1323,23 +1230,6 @@
       "win": null
     },
     {
-      "id": "fd-564754",
-      "cat": "football",
-      "title": "皇马(主) vs RC Celta de Vigo · 西甲",
-      "short": "塞尔塔",
-      "start": "2026-11-21T20:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564754",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
-      "result": null,
-      "win": null
-    },
-    {
       "id": "f1-11420",
       "cat": "f1",
       "title": "F1 美国站 · 正赛",
@@ -1404,23 +1294,6 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "fd-575397",
-      "cat": "football",
-      "title": "皇马(主) vs PSV · 欧冠",
-      "short": "PSV",
-      "start": "2026-11-24T20:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-575397",
-      "groupName": "欧冠",
-      "url": null,
-      "dur": 120,
       "result": null,
       "win": null
     },
@@ -1629,23 +1502,6 @@
       "win": null
     },
     {
-      "id": "fd-564762",
-      "cat": "football",
-      "title": "皇马(主) vs Deportivo Alavés · 西甲",
-      "short": "阿拉维",
-      "start": "2026-11-29T00:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564762",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
-      "result": null,
-      "win": null
-    },
-    {
       "id": "mgp-6ad2859f-51c4-459e-9714-338814e7537f-c6ad4ab8-f150-48c9-af49-ce5eed2128d5",
       "cat": "motogp",
       "title": "MotoGP VAL站 · 热身赛",
@@ -1799,23 +1655,6 @@
       "win": null
     },
     {
-      "id": "fd-564775",
-      "cat": "football",
-      "title": "皇马(客) vs Athletic Club · 西甲",
-      "short": "毕巴",
-      "start": "2026-12-06T00:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564775",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
-      "result": null,
-      "win": null
-    },
-    {
       "id": "f1-11436",
       "cat": "f1",
       "title": "F1 阿布扎比站 · 正赛",
@@ -1828,40 +1667,6 @@
       "group": "f1-1302",
       "groupName": "阿布扎比站",
       "url": "https://www.formula1.com/en/racing/2026",
-      "dur": 120,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "fd-575280",
-      "cat": "football",
-      "title": "皇马(客) vs Arsenal FC · 欧冠",
-      "short": "阿森纳",
-      "start": "2026-12-09T20:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-575280",
-      "groupName": "欧冠",
-      "url": null,
-      "dur": 120,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "fd-564780",
-      "cat": "football",
-      "title": "皇马(主) vs CA Osasuna · 西甲",
-      "short": "奥萨苏",
-      "start": "2026-12-13T00:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564780",
-      "groupName": "西甲",
-      "url": null,
       "dur": 120,
       "result": null,
       "win": null
@@ -1931,23 +1736,6 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
-    },
-    {
-      "id": "fd-564796",
-      "cat": "football",
-      "title": "皇马(客) vs RC Deportivo La Coruña · 西甲",
-      "short": "DEP",
-      "start": "2026-12-20T00:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "football-data",
-      "rank": 3,
-      "group": "fd-564796",
-      "groupName": "西甲",
-      "url": null,
-      "dur": 120,
       "result": null,
       "win": null
     },

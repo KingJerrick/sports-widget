@@ -19,7 +19,7 @@ import java.time.ZoneId
  */
 
 /**
- * 七个赛事类别。key 与后端 JSON 里的 cat 字段一一对应。
+ * 六个赛事类别。key 与后端 JSON 里的 cat 字段一一对应。
  *
  * 顺序 = 图例里的顺序，也和 tools/fetch_calendar.py 的 SOURCES 一致：
  * 先是赛车项目（一个周末撑起一张卡），再是队伍类。
@@ -34,14 +34,13 @@ enum class Cat(
     val key: String,
     /** App 图例里显示的名字 */
     val label: String,
-    /** 小组件里 chip 的背景（7 个预置 drawable，见 bg_pill_f1.xml 的说明） */
+    /** 小组件里 chip 的背景（见 bg_pill_f1.xml 的说明） */
     val pillRes: Int,
     /** App 图例色点的颜色 */
     val dotColorRes: Int,
 ) {
     F1("f1", "F1", R.drawable.bg_pill_f1, R.color.cat_f1),
     MOTOGP("motogp", "MotoGP", R.drawable.bg_pill_mgp, R.color.cat_mgp),
-    FOOTBALL("football", "足球 · 皇马", R.drawable.bg_pill_football, R.color.cat_football),
     MLB("mlb", "棒球 · 道奇", R.drawable.bg_pill_mlb, R.color.cat_mlb),
     NBA("nba", "篮球 · 勇士", R.drawable.bg_pill_nba, R.color.cat_nba),
     CS2("cs2", "CS2 · 猎鹰", R.drawable.bg_pill_cs2, R.color.cat_cs2),

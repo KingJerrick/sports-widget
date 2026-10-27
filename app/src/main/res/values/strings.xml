@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">赛事日历</string>
     <string name="widget_title">赛事日历</string>
-    <string name="widget_description">未来七天的 F1、MotoGP、皇马、道奇、勇士、猎鹰、IG 赛程</string>
+    <string name="widget_description">未来七天的 F1、MotoGP、道奇、勇士、猎鹰、IG 赛程</string>
 
     <!--
       小组件顶栏那两个按键。刻意都用动词、都只有两个字，宽度才好对齐 ——
