@@ -1,9 +1,10 @@
 {
-  "generated_at": "2026-10-27T06:09:39Z",
+  "generated_at": "2026-10-27T09:34:57Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
     "motogp": "MotoGP",
+    "football": "皇马",
     "mlb": "道奇",
     "nba": "勇士",
     "cs2": "猎鹰",
@@ -12,6 +13,7 @@
   "marks": {
     "f1": "F1",
     "motogp": "GP",
+    "football": "皇马",
     "mlb": "道奇",
     "nba": "勇士",
     "cs2": "猎鹰",
@@ -29,6 +31,12 @@
       "count": 40,
       "error": null,
       "enabled": true
+    },
+    "football": {
+      "ok": true,
+      "count": 0,
+      "error": null,
+      "enabled": false
     },
     "mlb": {
       "ok": true,
