@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-04T06:19:43Z",
+  "generated_at": "2026-11-04T19:44:01Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -52,7 +52,7 @@
     },
     "cs2": {
       "ok": true,
-      "count": 0,
+      "count": 2,
       "error": null,
       "enabled": true
     },
@@ -386,6 +386,40 @@
       "dur": 180,
       "result": "3-1",
       "win": true
+    },
+    {
+      "id": "ps-1781467",
+      "cat": "cs2",
+      "title": "猎鹰 vs Heroic · Beijing 2026 · Group A",
+      "short": "HERO",
+      "start": "2026-11-04T04:33:42Z",
+      "end": "2026-11-04T06:22:35Z",
+      "venue": null,
+      "source": "pandascore",
+      "rank": 3,
+      "group": "ps-1781467",
+      "groupName": "Beijing 2026 · Group A",
+      "url": null,
+      "dur": 180,
+      "result": "2-0",
+      "win": true
+    },
+    {
+      "id": "ps-1781468",
+      "cat": "cs2",
+      "title": "猎鹰 vs Natus Vincere · Beijing 2026 · Group A",
+      "short": "NAVI",
+      "start": "2026-11-04T10:20:41Z",
+      "end": "2026-11-04T13:03:20Z",
+      "venue": null,
+      "source": "pandascore",
+      "rank": 3,
+      "group": "ps-1781468",
+      "groupName": "Beijing 2026 · Group A",
+      "url": null,
+      "dur": 180,
+      "result": "1-2",
+      "win": false
     },
     {
       "id": "nba-21718042",
