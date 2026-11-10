@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-09T22:20:12Z",
+  "generated_at": "2026-11-10T07:15:53Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -46,7 +46,7 @@
     },
     "nba": {
       "ok": true,
-      "count": 28,
+      "count": 27,
       "error": null,
       "enabled": true
     },
@@ -64,23 +64,6 @@
     }
   },
   "events": [
-    {
-      "id": "nba-21718024",
-      "cat": "nba",
-      "title": "勇士(主) vs Phoenix Suns",
-      "short": "太阳",
-      "start": "2026-11-03T03:00:00Z",
-      "end": null,
-      "venue": null,
-      "source": "balldontlie",
-      "rank": 3,
-      "group": "nba-21718024",
-      "groupName": "NBA",
-      "url": null,
-      "dur": 180,
-      "result": "116-113",
-      "win": true
-    },
     {
       "id": "lol-1711018",
       "cat": "lol",
@@ -384,8 +367,8 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
+      "result": "138-87",
+      "win": true
     },
     {
       "id": "ps-1762451",
