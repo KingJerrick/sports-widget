@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-13T19:40:17Z",
+  "generated_at": "2026-11-14T06:20:30Z",
   "window_days": 60,
   "labels": {
     "f1": "F1",
@@ -46,7 +46,7 @@
     },
     "nba": {
       "ok": true,
-      "count": 27,
+      "count": 28,
       "error": null,
       "enabled": true
     },
@@ -316,8 +316,8 @@
       "groupName": "NBA",
       "url": null,
       "dur": 180,
-      "result": null,
-      "win": null
+      "result": "85-123",
+      "win": false
     },
     {
       "id": "ps-1762448",
@@ -1248,6 +1248,23 @@
       "source": "balldontlie",
       "rank": 3,
       "group": "nba-21718480",
+      "groupName": "NBA",
+      "url": null,
+      "dur": 180,
+      "result": null,
+      "win": null
+    },
+    {
+      "id": "nba-21718506",
+      "cat": "nba",
+      "title": "勇士(主) vs Sacramento Kings",
+      "short": "国王",
+      "start": "2027-01-13T04:00:00Z",
+      "end": null,
+      "venue": null,
+      "source": "balldontlie",
+      "rank": 3,
+      "group": "nba-21718506",
       "groupName": "NBA",
       "url": null,
       "dur": 180,
